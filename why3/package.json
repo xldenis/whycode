@@ -1,5 +1,5 @@
 {
-  "name": "why3",
+	"name": "why3",
 	"displayName": "Why3",
 	"description": "",
 	"version": "0.0.1",
@@ -10,14 +10,89 @@
 		"Other"
 	],
 	"activationEvents": [
-        "onCommand:why3.helloWorld"
+		"onCommand:why3.launchServer"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
+		"views": {
+			"explorer": [
+				{
+					"id": "why3_tasks",
+					"name": "Why3 Tasks"
+				}
+			]
+		},
 		"commands": [
+			{	"command": "why3.launchServer",
+				"title": "Launch Why3 Server"
+			},
 			{
-				"command": "why3.helloWorld",
-				"title": "Hello World"
+				"command": "taskList.autoLevel0",
+				"icon": "$(zap)",
+				"title": "Auto Level 0"
+			},
+			{
+				"command": "taskList.autoLevel1",
+				"title": "Auto Level 1"
+			},
+			{	
+				"command": "taskList.autoLevel2",
+				"title": "Auto Level 2"
+			},
+			{
+				"command": "taskList.splitVC",
+				"title": "Split VC"
+			},
+			{
+				"command": "taskList.clean",
+				"title": "Clean Node"
+			},
+			{
+				"command": "why.runTransform",
+				"title": "Apply Transformation"
+			},
+			{
+				"command": "taskList.remove",
+				"title": "Remove Node"
+			}
+		],
+		"menus": {
+			"view/item/context": [
+				{
+					"command" : "taskList.autoLevel0",
+					"when": "view == why3_tasks",
+					"group": "inline"
+				},
+				{
+					"command" : "taskList.autoLevel0",
+					"when": "view == why3_tasks"
+				},
+				{
+					"command" : "taskList.autoLevel1",
+					"when": "view == why3_tasks"
+				},
+				{
+					"command" : "taskList.autoLevel2",
+					"when": "view == why3_tasks"
+				},
+				{
+					"command" : "taskList.splitVC",
+					"when": "view == why3_tasks"
+				},
+				{
+					"command": "taskList.clean",
+					"when": "view == why3_tasks"
+				},
+				{
+					"command": "taskList.remove",
+					"when": "view == why3_tasks"
+				}
+			]
+		},
+		"keybindings" : [
+			{ 	"command": "taskList.remove",
+				"when": "sideBarFocus && focusedView == 'why3_tasks'",
+				"key": "0"
 			}
 		]
 	},
@@ -30,16 +105,20 @@
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
-		"@types/vscode": "^1.52.0",
 		"@types/glob": "^7.1.3",
 		"@types/mocha": "^8.0.4",
 		"@types/node": "^12.11.7",
-		"eslint": "^7.15.0",
+		"@types/vscode": "^1.52.0",
 		"@typescript-eslint/eslint-plugin": "^4.9.0",
 		"@typescript-eslint/parser": "^4.9.0",
+		"eslint": "^7.15.0",
 		"glob": "^7.1.6",
 		"mocha": "^8.1.3",
 		"typescript": "^4.1.2",
 		"vscode-test": "^1.4.1"
+	},
+	"dependencies": {
+		"@types/ndjson": "^2.0.0",
+		"ndjson": "^2.0.0"
 	}
 }

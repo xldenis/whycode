@@ -44,7 +44,6 @@ module Scheduler = struct
     let ms = float ms /. 1000.0 in
     let time = Unix.gettimeofday () in
     insert_timeout_handler ms (time +. ms) f
-
 end
 
 module Protocol = struct
@@ -58,10 +57,13 @@ module Protocol = struct
   let requests = ref []
 
   let push_request r =
+    (* print_string "\npush_request\n\n"; *)
     requests := r :: !requests
 
   let get_requests () =
-    let l = !requests in requests := []; List.rev l
+    let l = !requests in requests := [];
+    (* Format.printf "outstanding requests %d\n" (List.length l); *)
+    List.rev l
 end
 
 open Why3
@@ -192,24 +194,60 @@ let rec handle_incoming input = Lwt_io.read_line_opt input >>= fun line ->
     | Ok(req) ->
       Protocol.push_request req ;
       handle_incoming input
-    | Error(_err) -> Lwt.return ()
+    | Error(_err) ->
+      Lwt.return ()
     end
   | None -> Lwt.return ()
 
 
 (* For now poll. In the future use a stream to push notifacations directly *)
 let rec handle_outgoing out = Lwt_unix.sleep 0.1 >>= fun _ ->
-  let _notifs = Protocol.get_notifications () in
-
+  let _notifs : notification list = Protocol.get_notifications () in
+  List.iter (fun notif -> Yojson.Safe.to_channel stdout (notification_to_yojson notif); print_newline ()) _notifs;
+  flush stdout;
   handle_outgoing out
 
+(*  rework this more natively into Lwt
+    What are the semantics of idle functions? How often should they be run, what is idle?
+*)
+
+
+let rec process_callbacks () =
+  let time = Unix.gettimeofday () in
+  begin match ! Scheduler.timeout_handler with
+  | (ms, t, f) :: rem when t <= time ->
+      Scheduler.timeout_handler := rem;
+        let b = f () in
+      let time = Unix.gettimeofday () in
+      if b then Scheduler.insert_timeout_handler ms (ms +. time) f;
+      process_callbacks ()
+  | _ ->
+    match !Scheduler.idle_handler with
+    | (p, f) :: rem ->
+      Scheduler.idle_handler := rem;
+      let b = f () in
+      if b then Scheduler.insert_idle_handler p f;
+      process_callbacks ()
+    | [] -> ()
+  end
+
+let rec handle_callbacks () =
+  process_callbacks ();
+  let time = Unix.gettimeofday () in
+  let delay =
+    match !Scheduler.timeout_handler with
+    | [] -> 0.125
+    | (_, t, _) :: _ -> t -. time
+  in Lwt_unix.sleep delay >>= fun _ -> handle_callbacks ()
+
+
 let main_loop input output =
-  Lwt.pick [handle_incoming input; handle_outgoing output]
+  Lwt.pick [handle_incoming input; handle_outgoing output; handle_callbacks ()]
 
 let files : string Queue.t = Queue.create ()
 
 let _ =
-(*   let cli_opts = [] in
+  let cli_opts = [] in
   let usage_str = "" in
   let config, _base_config, env =
       (* Can this be ditched entirely? *)
@@ -223,6 +261,6 @@ let _ =
         Whyconf.Args.exit_with_usage cli_opts usage_str
     in
     S.init_server config env dir;
-    Queue.iter (fun f -> Protocol.push_request (Add_file_req f)) files; *)
+    Queue.iter (fun f -> Protocol.push_request (Add_file_req f)) files;
     Lwt_main.run (main_loop Lwt_io.stdin Lwt_io.stdout);
     ()
