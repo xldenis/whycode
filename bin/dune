@@ -2,12 +2,5 @@
  (public_name whycode)
  (name main)
  (libraries whycode
-            cohttp-lwt-unix
-            conduit-lwt
-            why3
-            ppx_deriving_rpc
-            ppx_deriving_yojson
-            ppx_import
-            rpclib.json)
- (preprocess (staged_pps ppx_import ppx_deriving_rpc ppx_deriving_yojson))
+            why3)
 )

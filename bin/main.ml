@@ -1,4 +1,4 @@
-open Why3.Itp_server
+(* open Why3.Itp_server
 open Why3.Itp_communication
 
 module Scheduler = struct
@@ -132,7 +132,7 @@ type proof_attempt_status_internal =
   | Done of Call_provers.prover_result (** external proof done *)
   | Interrupted (** external proof has never completed *)
   | Detached (** parent goal has no task, is detached *)
-  | Uninstalled of prover (** prover is uninstalled *)
+  | Uninstalled of prover * prover is uninstalled 
   | UpgradeProver of prover (** prover is upgraded *)
   | Removed of prover (** prover has been removed or upgraded *)
   [@@deriving to_yojson]
@@ -264,3 +264,4 @@ let _ =
     Queue.iter (fun f -> Protocol.push_request (Add_file_req f)) files;
     Lwt_main.run (main_loop Lwt_io.stdin Lwt_io.stdout);
     ()
+ *)
