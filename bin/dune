@@ -2,5 +2,6 @@
  (public_name whycode)
  (name main)
  (libraries whycode
-            why3)
+            why3
+            lsp linol linol-lwt)
 )
