@@ -1,5 +1,4 @@
 open Server
-open Why3.Itp_server
 
 let run () =
   let s = new Server.why_lsp_server in

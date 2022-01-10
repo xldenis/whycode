@@ -3,11 +3,16 @@ import { workspace, ExtensionContext } from 'vscode';
 import * as vscode from 'vscode';
 
 import {
+	DidChangeTextDocumentNotification,
+	DidCloseTextDocumentNotification,
+	DidOpenTextDocumentNotification,
 	LanguageClient,
 	LanguageClientOptions,
 	ServerOptions,
-	TransportKind
+	TransportKind,
+	URI
 } from 'vscode-languageclient/node';
+import { createConverter } from 'vscode-languageclient/lib/common/codeConverter';
 
 let client: LanguageClient;
 
@@ -59,6 +64,43 @@ export function activate(context: ExtensionContext) {
 		serverOptions,
 		clientOptions
 	);
+
+	var proofDocs : Set<vscode.Uri> = new Set();
+
+	workspace.onDidChangeTextDocument( (event) => {
+		if (event.contentChanges.length === 0) {
+            return;
+        }
+		vscode.window.showInformationMessage("Document Change!");
+
+		// check if the document which changed is one we care about
+		// if so, forward that to the LSP server.
+		if (proofDocs.has(event.document.uri)) { 
+			// This seems to only be for 'incremental sync' 
+			client.sendNotification(DidChangeTextDocumentNotification.type, createConverter().asChangeTextDocumentParams(event));
+		}
+	});
+
+	workspace.onDidCloseTextDocument((e) => {
+		vscode.window.showInformationMessage("Document Close!");
+		// If the document is in our list, then remove it.
+		proofDocs.delete(e.uri);
+		// And notify the server
+		client.sendNotification(DidCloseTextDocumentNotification.type,  createConverter().asCloseTextDocumentParams(e));
+	});
+
+	const xx = vscode.commands.registerCommand('extension.Prove', () => {
+		// Add a document URI to a list of things we care about
+		if (vscode.window.activeTextEditor != undefined) {
+			let doc = vscode.window.activeTextEditor.document;
+			proofDocs.add(doc.uri);
+			client.sendNotification(DidOpenTextDocumentNotification.type,  createConverter().asOpenTextDocumentParams(doc));
+
+		}
+
+		vscode.window.showInformationMessage('File loaded for proof!');
+	});
+
 
 	// Start the client. This will also launch the server
 	client.start();
