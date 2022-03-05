@@ -1,4 +1,7 @@
-class why_lsp_server = 
+let process uri contents =
+  Ok ()
+
+class why_lsp_server =
 	object(self)
 		inherit Linol_lwt.Jsonrpc2.server
 
@@ -8,7 +11,14 @@ class why_lsp_server =
   method private _on_doc
       ~(notify_back:Linol_lwt.Jsonrpc2.notify_back)
       (uri:Lsp.Types.DocumentUri.t) (contents:string) =
-      Linol_lwt.Jsonrpc2.IO.failwith "oops"
+      match process uri (Some contents) with
+      | Ok state ->
+          Hashtbl.replace buffers uri state;
+          notify_back#send_diagnostic []
+      | Error msg ->
+        Linol_lwt.Jsonrpc2.IO.failwith (
+          Format.asprintf "Internal why3 error: %s" msg
+        )
     (* TODO: unescape uri/translate it to a correct path ? *)
 (*     match Loop.process uri (Some contents) with
     | Ok state ->
@@ -31,3 +41,4 @@ class why_lsp_server =
     Linol_lwt.Jsonrpc2.IO.return ()
 
 	end
+
