@@ -1,9 +1,35 @@
 let process uri contents =
   Ok ()
 
-class why_lsp_server =
-	object(self)
-		inherit Linol_lwt.Jsonrpc2.server
+open Backend
+open Why3
+
+(*
+  1. Map files to sessions
+  2. When a new session is discovered ( doesn't exist), create it
+  3. Create a controller for each session
+
+ *)
+
+class why_lsp_server = object(self)
+	inherit Linol_lwt.Jsonrpc2.server
+
+  val files : string Queue.t = Queue.create ()
+
+  initializer
+    let cli_opts = [] in
+    let usage_str = "" in
+    let config, env =
+      (* Can this be ditched entirely? *)
+      Whyconf.Args.initialize cli_opts (fun f -> Queue.add f files) usage_str
+    in ()
+   (*  let dir = try
+        Server_utils.get_session_dir ~allow_mkdir:true files
+      with Invalid_argument s ->
+        Format.eprintf "Error: %s@." s;
+        Whyconf.Args.exit_with_usage cli_opts usage_str
+    in
+    S.init_server config env dir *)
 
 	(* one env per document *)
   val buffers: (Lsp.Types.DocumentUri.t, unit) Hashtbl.t = Hashtbl.create 32
