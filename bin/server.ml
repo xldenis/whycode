@@ -13,25 +13,80 @@ open Uri
   TODO: build the 'server infos': prover list, transofmrations, strategies, and commands
  *)
 
+open Itp_communication
 type session_id = string
-type session_data = unit
+type session_data = (ide_request list ref)
 
 module type SERVER = sig end
+ open Linol_lwt
 
 let first_class_server config env session_path =
   let open Itp_server in
+  let requests = ref [] in
+
   let module P = ( struct
     let notify msg = assert false
-    let get_requests () = assert false
+    let get_requests () =
+      let l = !requests in requests := [];
+      List.rev l
    end : Protocol) in
+
   let module S = (struct
-    let blocking = true
-    let multiplier = 1
-    let timeout ~ms _ = assert false
-    let idle ~prio _ = assert false
-  end : Controller_itp.Scheduler) in
+  let multiplier = 1
+  let blocking = false
+
+  (* [insert_idle_handler p f] inserts [f] as a new function to call
+         on idle, with priority [p] *)
+  let rec insert_idle_handler p f =
+    let rec promise () =
+      let* () = Lwt_unix.sleep 0.125 in
+      if f () then
+        promise ()
+      else return ()
+    in
+  Linol_lwt.spawn (fun () ->
+    promise ()
+  )
+
+
+  (* [insert_timeout_handler ms t f] inserts [f] as a new function to call
+         on timeout, with time step of [ms] and first call time as [t] *)
+  let insert_timeout_handler ms (t : float) (f : unit -> bool) =
+      let time = Unix.gettimeofday () in
+      let sleep = t -. time in
+
+      spawn (fun () ->
+        let* () = Lwt_unix.sleep sleep in
+        let rec promise () =
+          if f () then
+            let* () = Lwt_unix.sleep ms in
+            promise ()
+          else return ()
+        in promise ()
+      )
+(*     let rec aux l =
+      match l with
+      | [] -> [ms,t,f]
+      | (_,t1,_) as hd :: rem ->
+         if t < t1 then (ms,t,f) :: l else hd :: aux rem
+    in
+    timeout_handler := aux !timeout_handler *)
+
+  (* public function to register a task to run on idle *)
+  let idle ~(prio:int) f = insert_idle_handler prio f
+
+  (* public function to register a task to run on timeout *)
+  let timeout ~ms f =
+    assert (ms > 0);
+    let ms = float ms /. 1000.0 in
+    let time = Unix.gettimeofday () in
+    insert_timeout_handler ms (time +. ms) f
+end : Controller_itp.Scheduler) in
+
+
   let module Server = Make(S)(P) in
-  let s = (module Server : SERVER) in s
+  let s = (module Server : SERVER) in
+  (requests)
 
 (* build a 'session controller' *)
 let build_controller config env session_path =
@@ -44,15 +99,22 @@ class why_lsp_server = object(self)
 	inherit Linol_lwt.Jsonrpc2.server
 (*
   val files : string Queue.t = Queue.create ()
-
+*)
+  val mutable config = Obj.magic ()
+  val mutable env = Obj.magic ()
   initializer
     let cli_opts = [] in
     let usage_str = "" in
-    let config, env =
+    let config', env' =
       (* Can this be ditched entirely? *)
-      Whyconf.Args.initialize cli_opts (fun f -> Queue.add f files) usage_str
-    in ()
- *)   (*  let dir = try
+      Whyconf.Args.initialize cli_opts (fun f -> ()) usage_str
+    in
+    config <- config';
+    env <- env'
+
+
+
+   (*  let dir = try
         Server_utils.get_session_dir ~allow_mkdir:true files
       with Invalid_argument s ->
         Format.eprintf "Error: %s@." s;
@@ -75,7 +137,7 @@ class why_lsp_server = object(self)
       let cont = Hashtbl.find_opt sessions sess_id in
       let cont = match cont with
         | Some cont -> cont
-        | None -> assert false
+        | None ->first_class_server config env sess_id
         (* build_controller config env sess_id *)
       in
 
