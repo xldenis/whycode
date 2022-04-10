@@ -6,6 +6,7 @@ depends: [
   "lsp"
   "linol"
   "linol-lwt"
+  "uri"
 ]
 build: [
   ["dune" "subst"] {dev}

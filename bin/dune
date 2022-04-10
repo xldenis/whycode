@@ -3,5 +3,5 @@
  (name main)
  (libraries whycode
             why3
-            lsp linol linol-lwt)
+            lsp linol linol-lwt uri)
 )
