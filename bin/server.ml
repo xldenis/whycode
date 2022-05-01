@@ -341,5 +341,6 @@ class why_lsp_server =
         | [] -> false
       in
       let match_task = search tasks in
+      let strats = get_strategies config in
       return None
   end
