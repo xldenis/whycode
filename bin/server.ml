@@ -1,108 +1,247 @@
-let process cont uri contents =
-  Error "hi :)"
+let process cont uri contents = Error "hi :)"
 
 open Backend
 open Why3
 open Uri
 
-(*
-  1. Map files to sessions
-  2. When a new session is discovered ( doesn't exist), create it
-  3. Create a controller for each session
+let loc_to_range loc =
+  let _, l, c1, c2 = Loc.get loc in
+  Lsp.Types.Range.create (* why is this necessary?       ----------v *)
+    ~start:(Lsp.Types.Position.create ~line:(l - 1) ~character:c1)
+    ~end_:(Lsp.Types.Position.create ~line:(l - 1) ~character:c2)
 
-  TODO: build the 'server infos': prover list, transofmrations, strategies, and commands
- *)
+let warn loc message =
+  Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Warning
+    ~source:"Why3" ~message
+
+(* TODO
+   1. Kill whole server when one of the various async tasks dies
+   2. Reduce the need to spawn as much?
+*)
+
+module TaskTree = struct
+  open Itp_communication
+
+  type task_info = {
+    task : string;
+    locations : (Loc.position * color) list;
+    goal : Loc.position option;
+    lang : string;
+  }
+
+  (* seperate out the node body from the tree itself *)
+  type task_tree =
+    | Node of node_ID * string * task_info option * task_tree list
+
+  let rec add_tree parent_id tree self =
+    match self with
+    | Node (id, nm, task, children) ->
+        if parent_id = id then Node (id, nm, task, tree :: children)
+        else Node (id, nm, task, List.map (add_tree parent_id tree) children)
+
+  let rec remove_tree node_id self =
+    match self with
+    | Node (id, nm, task, children) ->
+        if node_id = id then failwith "cannot remove root node"
+        else
+          let check (Node (id, _, _, _) as n) =
+            if id = node_id then None else Some (remove_tree id n)
+          in
+          Node (id, nm, task, List.filter_map check children)
+
+  let rec update_node node_id f self =
+    let (Node (id, nm, task, children)) = self in
+    if node_id = id then f self
+    else Node (id, nm, task, List.map (update_node node_id f) children)
+
+  let to_list self : (string * task_info option) list =
+    let rec worker acc self =
+      let (Node (_, nm, task, children)) = self in
+      List.fold_left worker ((nm, task) :: acc) children
+    in
+    worker [] self
+end
 
 open Itp_communication
+open TaskTree
+
 type session_id = string
-type session_data = (ide_request list ref)
+type session_data = ide_request list ref * task_tree option ref
 
-module type SERVER = sig end
- open Linol_lwt
+let send_req (s : session_data) req =
+  let r, _ = s in
+  r := req :: !r
 
-let first_class_server config env session_path =
+let add_node (s : session_data) p_id n =
+  let _, t = s in
+  match !t with
+  | None -> t := Some n
+  | Some tr -> t := Some (add_tree p_id n tr)
+
+let remove_node s id : unit =
+  let _, t = s in
+  match !t with
+  | None -> failwith "cannot remove from empty tree"
+  | Some tr -> t := Some (remove_tree id tr)
+
+let edit_node s id f : unit =
+  let _, t = s in
+  match !t with
+  | None -> failwith "cannot edit empty tree"
+  | Some tr -> t := Some (update_node id f tr)
+
+let get_tasks s : (string * task_info) list =
+  let _, t = s in
+  match !t with
+  | None -> []
+  | Some tr ->
+      List.filter_map
+        (fun (nm, t) -> match t with Some t -> Some (nm, t) | None -> None)
+        (to_list tr)
+
+open Linol_lwt
+
+module type SERVER = sig
+  val init_server :
+    ?send_source:bool -> Whyconf.config -> Env.env -> string -> unit
+end
+
+let new_node_notif () : unit Jsonrpc.Message.t =
+  Jsonrpc.Message.create () "newNode" ()
+
+let notif_str n =
+  match n with
+  | Message _ -> "Message"
+  | Initialized _ -> "Initialized"
+  | Saved -> "Saved"
+  | New_node _ -> "New_node"
+  | Node_change _ -> "Node_change"
+  | Remove _ -> "Remove"
+  | Next_Unproven_Node_Id _ -> "Next_Unproven_Node_Id"
+  | Saving_needed _ -> "Saving_needed"
+  | Saved -> "Saved"
+  | Dead _ -> "Dead"
+  | Task _ -> "Task"
+  | File_contents _ -> "File_contents"
+  | Source_and_ce _ -> "Source_and_ce"
+  | Ident_notif_loc _ -> "Ident_notif_loc"
+
+let handle_notification s (notify_back : Jsonrpc2.notify_back)
+    (notif : notification) =
+  let* _ = notify_back#send_log_msg ~type_:MessageType.Info (notif_str notif) in
+  match notif with
+  (* | Message _ -> IO_lwt.failwith "Message" *)
+  | Initialized _ -> return ()
+  | Saved -> return ()
+  (* | Dead _ -> IO_lwt.failwith "Server Died" *)
+  | New_node (id, par_id, ty, nm, _) -> (
+      let n = Node (id, nm, None, []) in
+      add_node s par_id n;
+      (* Ask for the task of every 'goal' node so that we can get the
+         spans of the unsolved goals *)
+      match ty with
+      | NGoal ->
+          send_req s (Get_task (id, false, true));
+          return ()
+      | _ -> return ())
+  | Task (id, task, locs, goal, lang) ->
+      let task_info = { task; locations = locs; goal; lang } in
+
+      edit_node s id (fun node ->
+          let (Node (id, nm, info, children)) = node in
+          Node (id, nm, Some task_info, children));
+      return ()
+  | Node_change (id, info) -> begin
+      match info with
+      | Name_change nm' ->
+          edit_node s id (fun node ->
+              let (Node (id, nm, info, children)) = node in
+              Node (id, nm', info, children));
+          return ()
+      | _ -> return ()
+    end
+  | Remove id ->
+      remove_node s id;
+      return ()
+  | Reset_whole_tree ->
+      let _, t = s in
+      t := None;
+      return ()
+  (*
+      | Next_Unproven_Node_Id _ -> IO_lwt.failwith "Next_Unproven_Node_Id"
+      | Saving_needed _ -> IO_lwt.failwith "Saving_needed"
+      | File_contents _ -> IO_lwt.failwith "File_contents"
+      | Source_and_ce _ -> IO_lwt.failwith "Source_and_ce"
+      | Ident_notif_loc _ -> IO_lwt.failwith "Ident_notif_loc"
+  *)
+  | _ -> return ()
+
+let mk_server (notify_back : Jsonrpc2.notify_back) config env session_path :
+    session_data =
   let open Itp_server in
   let requests = ref [] in
+  let tree = ref None in
 
-  let module P = ( struct
-    let notify msg = assert false
+  let module P : Protocol = struct
+    let notify msg =
+      spawn (fun () -> handle_notification (requests, tree) notify_back msg)
+
     let get_requests () =
-      let l = !requests in requests := [];
+      let l = !requests in
+      requests := [];
       List.rev l
-   end : Protocol) in
+  end in
+  let module S : Controller_itp.Scheduler = struct
+    let multiplier = 1
+    let blocking = false
 
-  let module S = (struct
-  let multiplier = 1
-  let blocking = false
+    (* [insert_idle_handler p f] inserts [f] as a new function to call
+           on idle, with priority [p] *)
+    let rec insert_idle_handler p f =
+      let rec promise () =
+        let* () = Lwt_unix.sleep 0.125 in
+        if f () then promise () else return ()
+      in
+      Linol_lwt.spawn (fun () -> promise ())
 
-  (* [insert_idle_handler p f] inserts [f] as a new function to call
-         on idle, with priority [p] *)
-  let rec insert_idle_handler p f =
-    let rec promise () =
-      let* () = Lwt_unix.sleep 0.125 in
-      if f () then
-        promise ()
-      else return ()
-    in
-  Linol_lwt.spawn (fun () ->
-    promise ()
-  )
-
-
-  (* [insert_timeout_handler ms t f] inserts [f] as a new function to call
-         on timeout, with time step of [ms] and first call time as [t] *)
-  let insert_timeout_handler ms (t : float) (f : unit -> bool) =
+    (* [insert_timeout_handler ms t f] inserts [f] as a new function to call
+           on timeout, with time step of [ms] and first call time as [t] *)
+    let insert_timeout_handler ms (t : float) (f : unit -> bool) =
       let time = Unix.gettimeofday () in
       let sleep = t -. time in
 
       spawn (fun () ->
-        let* () = Lwt_unix.sleep sleep in
-        let rec promise () =
-          if f () then
-            let* () = Lwt_unix.sleep ms in
-            promise ()
-          else return ()
-        in promise ()
-      )
-(*     let rec aux l =
-      match l with
-      | [] -> [ms,t,f]
-      | (_,t1,_) as hd :: rem ->
-         if t < t1 then (ms,t,f) :: l else hd :: aux rem
-    in
-    timeout_handler := aux !timeout_handler *)
+          let* () = Lwt_unix.sleep sleep in
+          let rec promise () =
+            if f () then
+              let* () = Lwt_unix.sleep ms in
+              promise ()
+            else return ()
+          in
+          promise ())
 
-  (* public function to register a task to run on idle *)
-  let idle ~(prio:int) f = insert_idle_handler prio f
+    (* public function to register a task to run on idle *)
+    let idle ~(prio : int) f = insert_idle_handler prio f
 
-  (* public function to register a task to run on timeout *)
-  let timeout ~ms f =
-    assert (ms > 0);
-    let ms = float ms /. 1000.0 in
-    let time = Unix.gettimeofday () in
-    insert_timeout_handler ms (time +. ms) f
-end : Controller_itp.Scheduler) in
-
-
-  let module Server = Make(S)(P) in
+    (* public function to register a task to run on timeout *)
+    let timeout ~ms f =
+      assert (ms > 0);
+      let ms = float ms /. 1000.0 in
+      let time = Unix.gettimeofday () in
+      insert_timeout_handler ms (time +. ms) f
+  end in
+  let module Server = Make (S) (P) in
   let s = (module Server : SERVER) in
-  (requests)
+  Server.init_server config env session_path;
+  (requests, tree)
 
-(* build a 'session controller' *)
-let build_controller config env session_path =
-  let ses = Session_itp.load_session session_path in
-  let c = Controller_itp.create_controller config env ses in
-  Server_utils.load_strategies c;
-  c
+class why_lsp_server =
+  object (self)
+    inherit Linol_lwt.Jsonrpc2.server
+    val mutable config = Obj.magic ()
+    val mutable env = Obj.magic ()
 
-class why_lsp_server = object(self)
-	inherit Linol_lwt.Jsonrpc2.server
-(*
-  val files : string Queue.t = Queue.create ()
-*)
-  val mutable config = Obj.magic ()
-  val mutable env = Obj.magic ()
-  initializer
+    initializer
     let cli_opts = [] in
     let usage_str = "" in
     let config', env' =
@@ -112,74 +251,95 @@ class why_lsp_server = object(self)
     config <- config';
     env <- env'
 
+    val file_to_session : (Lsp.Types.DocumentUri.t, session_id) Hashtbl.t =
+      Hashtbl.create 32
 
+    val sessions : (session_id, session_data) Hashtbl.t = Hashtbl.create 32
+    val buffers : (Lsp.Types.DocumentUri.t, unit) Hashtbl.t = Hashtbl.create 32
 
-   (*  let dir = try
-        Server_utils.get_session_dir ~allow_mkdir:true files
-      with Invalid_argument s ->
-        Format.eprintf "Error: %s@." s;
-        Whyconf.Args.exit_with_usage cli_opts usage_str
-    in
-    S.init_server config env dir *)
+    method private config_code_action_provider =
+      `CodeActionOptions (CodeActionOptions.create ())
 
-	(* one env per document *)
-
-
-  val file_to_session : (Lsp.Types.DocumentUri.t, session_id) Hashtbl.t = Hashtbl.create 32
-  val sessions : (session_id, session_data) Hashtbl.t = Hashtbl.create 32
-
-  val buffers: (Lsp.Types.DocumentUri.t, unit) Hashtbl.t = Hashtbl.create 32
-
-  method private _on_doc
-      ~(notify_back:Linol_lwt.Jsonrpc2.notify_back)
-      (uri:Lsp.Types.DocumentUri.t) (contents:string) =
+    method private _on_doc ~(notify_back : Linol_lwt.Jsonrpc2.notify_back)
+        (uri : Lsp.Types.DocumentUri.t) (contents : string) =
       let sess_id = self#find_session uri in
       let cont = Hashtbl.find_opt sessions sess_id in
-      let cont = match cont with
+
+      (* spawn (fun () ->
+
+           notify_back#send_log_msg ~type_:Info (String.concat "\n" (Array.to_list (Unix.environment ())))
+
+         ); *)
+      let srvr =
+        match cont with
         | Some cont -> cont
-        | None ->first_class_server config env sess_id
-        (* build_controller config env sess_id *)
+        | None -> mk_server notify_back config env sess_id
       in
 
-      match process cont uri (Some contents) with
-      | Ok state ->
-        Hashtbl.replace buffers uri state;
-                  notify_back#send_diagnostic []
-      | Error msg ->
-        Linol_lwt.Jsonrpc2.IO.failwith (
-          Format.asprintf "Internal why3 error: %s" msg
-        )
-    (* TODO: unescape uri/translate it to a correct path ? *)
-(*     match Loop.process uri (Some contents) with
-    | Ok state ->
-      let diags = state.solve_state in
-      Hashtbl.replace buffers uri state;
-      notify_back#send_diagnostic diags
-    | Error msg ->
-      Linol_lwt.Jsonrpc2.IO.failwith (
-        Format.asprintf "Internal dolmen error: %s" msg
-      ) *)
+      send_req srvr Reload_req;
 
-  method private find_session (uri: Lsp.Types.DocumentUri.t) : session_id =
-    match Hashtbl.find_opt file_to_session uri with
-    | Some sess_id -> sess_id
-    | None ->
-      let f = Queue.create () in
-      Queue.push (Uri.path (Uri.of_string uri)) f;
-      let sess = Server_utils.get_session_dir ~allow_mkdir:true f in
-      Hashtbl.replace file_to_session uri sess;
-      sess
+      (* Hack to see it work *)
+      spawn (fun () ->
+          let* () = Lwt_unix.sleep 0.125 in
 
+          let tasks = get_tasks srvr in
+          let diags =
+            List.filter_map
+              (fun (nm, t) ->
+                match t.goal with Some g -> Some (warn g nm) | None -> None)
+              tasks
+          in
+          notify_back#send_diagnostic diags);
+      return ()
 
-	method on_notif_doc_did_open ~notify_back d ~content =
-    self#_on_doc ~notify_back d.uri content
+    method private find_session (uri : Lsp.Types.DocumentUri.t) : session_id =
+      match Hashtbl.find_opt file_to_session uri with
+      | Some sess_id -> sess_id
+      | None ->
+          let f = Queue.create () in
+          Queue.push (DocumentUri.to_path uri) f;
+          let sess = Server_utils.get_session_dir ~allow_mkdir:true f in
+          Hashtbl.replace file_to_session uri sess;
+          sess
 
-  method on_notif_doc_did_change ~notify_back d _c ~old_content:_old ~new_content =
-    self#_on_doc ~notify_back d.uri new_content
+    method on_notif_doc_did_open ~notify_back d ~content =
+      self#_on_doc ~notify_back d.uri content
 
-  method on_notif_doc_did_close ~notify_back:_ d =
-    Hashtbl.remove buffers d.uri;
-    Linol_lwt.Jsonrpc2.IO.return ()
+    method on_notif_doc_did_change ~notify_back d _c ~old_content:_old
+        ~new_content =
+      self#_on_doc ~notify_back d.uri new_content
 
-	end
+    method on_notif_doc_did_close ~notify_back:_ d =
+      Hashtbl.remove buffers d.uri;
+      Linol_lwt.Jsonrpc2.IO.return ()
 
+    method on_req_code_action ~notify_back ~id c =
+      let sess_id = self#find_session c.textDocument.uri in
+      let cont = Hashtbl.find_opt sessions sess_id in
+
+      let* srvr =
+        match cont with
+        | Some cont -> return cont
+        | None -> failwith "ruh-roh session not properly initialized"
+      in
+      let tasks = get_tasks srvr in
+      let rec search tasks =
+        match tasks with
+        | t :: ts -> begin
+            match t.goal with
+            | Some g ->
+                let _, l, c1, c2 = Loc.get g in
+                if
+                  c.range.start.line = l
+                  && c.range.end_.start.line = l
+                  && c1 <= c.range.start.character
+                  && c2 <= c.range.end_.character
+                then true
+                else search ts
+            | None -> search ts
+          end
+        | [] -> false
+      in
+      let match_task = search tasks in
+      return None
+  end

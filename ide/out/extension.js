@@ -39,7 +39,7 @@ function activate(context) {
         synchronize: {}
     };
     // Create the language client and start the client.
-    client = new node_1.LanguageClient('languageServerExample', 'Language Server Example', serverOptions, clientOptions);
+    client = new node_1.LanguageClient('whycode', 'Why3', serverOptions, clientOptions);
     var proofDocs = new Set();
     vscode_1.workspace.onDidChangeTextDocument((event) => {
         if (event.contentChanges.length === 0) {

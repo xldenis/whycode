@@ -11,7 +11,9 @@
 			},
 			"problemMatcher": [
 				"$tsc"
-			]
+			],
+			"label": "npm: compile",
+			"detail": "tsc -p ./"
 		},
 		{
 			"type": "npm",
@@ -27,7 +29,9 @@
 			},
 			"problemMatcher": [
 				"$tsc-watch"
-			]
+			],
+			"label": "npm: watch",
+			"detail": "tsc -watch -p ./"
 		}
 	]
 }

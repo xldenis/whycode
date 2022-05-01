@@ -14,9 +14,8 @@ module Scheduler = struct
   let insert_idle_handler p f =
     let rec aux l =
       match l with
-      | [] -> [p,f]
-      | (p1,_) as hd :: rem ->
-         if p > p1 then (p,f) :: l else hd :: aux rem
+      | [] -> [ (p, f) ]
+      | ((p1, _) as hd) :: rem -> if p > p1 then (p, f) :: l else hd :: aux rem
     in
     idle_handler := aux !idle_handler
 
@@ -29,14 +28,14 @@ module Scheduler = struct
   let insert_timeout_handler ms t f =
     let rec aux l =
       match l with
-      | [] -> [ms,t,f]
-      | (_,t1,_) as hd :: rem ->
-         if t < t1 then (ms,t,f) :: l else hd :: aux rem
+      | [] -> [ (ms, t, f) ]
+      | ((_, t1, _) as hd) :: rem ->
+          if t < t1 then (ms, t, f) :: l else hd :: aux rem
     in
     timeout_handler := aux !timeout_handler
 
   (* public function to register a task to run on idle *)
-  let idle ~(prio:int) f = insert_idle_handler prio f
+  let idle ~(prio : int) f = insert_idle_handler prio f
 
   (* public function to register a task to run on timeout *)
   let timeout ~ms f =
@@ -48,11 +47,12 @@ end
 
 module Protocol = struct
   let notifications = ref []
-
-  let notify n = notifications := n :: ! notifications
+  let notify n = notifications := n :: !notifications
 
   let get_notifications () =
-    let l = !notifications in notifications := []; List.rev l
+    let l = !notifications in
+    notifications := [];
+    List.rev l
 
   let requests = ref []
 
@@ -61,7 +61,8 @@ module Protocol = struct
     requests := r :: !requests
 
   let get_requests () =
-    let l = !requests in requests := [];
+    let l = !requests in
+    requests := [];
     (* Format.printf "outstanding requests %d\n" (List.length l); *)
     List.rev l
 end
