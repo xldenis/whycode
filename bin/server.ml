@@ -4,6 +4,12 @@ open Backend
 open Why3
 open Uri
 
+module RunTransformationNotification = struct
+  type t =
+    { command: string; args: string list }
+    [@@deriving yojson] [@@yojson.allow_extra_fields]
+end
+
 let loc_to_range loc =
   let _, l, c1, c2 = Loc.get loc in
   Lsp.Types.Range.create (* why is this necessary?       ----------v *)
@@ -106,9 +112,9 @@ module type SERVER = sig
     ?send_source:bool -> Whyconf.config -> Env.env -> string -> unit
 end
 
-let new_node_notif () : unit Jsonrpc.Message.t =
+(* let new_node_notif () : unit Jsonrpc.Message.t =
   Jsonrpc.Message.create () "newNode" ()
-
+ *)
 let notif_str n =
   match n with
   | Message _ -> "Message"
@@ -273,7 +279,10 @@ class why_lsp_server =
       let srvr =
         match cont with
         | Some cont -> cont
-        | None -> mk_server notify_back config env sess_id
+        | None ->
+            let s = mk_server notify_back config env sess_id in
+            Hashtbl.add sessions sess_id s;
+            s
       in
 
       send_req srvr Reload_req;
@@ -325,15 +334,15 @@ class why_lsp_server =
       let tasks = get_tasks srvr in
       let rec search tasks =
         match tasks with
-        | t :: ts -> begin
+        | (_, t) :: ts -> begin
             match t.goal with
             | Some g ->
                 let _, l, c1, c2 = Loc.get g in
                 if
-                  c.range.start.line = l
-                  && c.range.end_.start.line = l
+                  c.range.start.line = l - 1
+                  && c.range.end_.line = l - 1
                   && c1 <= c.range.start.character
-                  && c2 <= c.range.end_.character
+                  && c.range.end_.character <= c2
                 then true
                 else search ts
             | None -> search ts
@@ -341,6 +350,28 @@ class why_lsp_server =
         | [] -> false
       in
       let match_task = search tasks in
-      let strats = get_strategies config in
-      return None
+      (* let strats = get_strategies config in *)
+      let strats : string list =
+        [ "Auto_level_0"; "Auto_level_2"; "Auto_level_2"; "Split_VC" ]
+      in
+
+      let actions =
+        List.map
+          (fun s -> `Command (Command.create s "why3.runTransformation" ()))
+          strats
+      in
+      if match_task then return (Some actions) else return None
+
+    method on_notification_unhandled ~notify_back notif =
+      let open Lsp.Import in
+      match notif with
+      | Lsp.Client_notification.UnknownNotification m ->
+        begin match m.method_ with
+        | "proof/runTransformation" ->
+          let params = Json.message_params m RunTransformationNotification.of_yojson in
+          (* RunTransformationNotification params *)
+          return ()
+        | _ -> return ()
+        end
+      | _ -> return ()
   end

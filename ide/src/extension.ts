@@ -102,6 +102,10 @@ export function activate(context: ExtensionContext) {
 	});
 
 
+	const _ = vscode.commands.registerCommand('why3.runTransformation', () => {
+		client.sendNotification('proof/runTransformation', []);
+	});
+
 	// Start the client. This will also launch the server
 	client.start();
 }
