@@ -1,5 +1,3 @@
-open Server
-
 let run () =
   let s = new Server.why_lsp_server in
   let server = Linol_lwt.Jsonrpc2.create_stdio s in

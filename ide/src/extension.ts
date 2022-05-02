@@ -6,6 +6,7 @@ import {
 	DidChangeTextDocumentNotification,
 	DidCloseTextDocumentNotification,
 	DidOpenTextDocumentNotification,
+	DocumentUri,
 	LanguageClient,
 	LanguageClientOptions,
 	ServerOptions,
@@ -89,7 +90,8 @@ export function activate(context: ExtensionContext) {
 		client.sendNotification(DidCloseTextDocumentNotification.type,  createConverter().asCloseTextDocumentParams(e));
 	});
 
-	const xx = vscode.commands.registerCommand('extension.Prove', () => {
+	// Seems unnecessary?
+	const prove = vscode.commands.registerCommand('extension.Prove', () => {
 		// Add a document URI to a list of things we care about
 		if (vscode.window.activeTextEditor != undefined) {
 			let doc = vscode.window.activeTextEditor.document;
@@ -101,11 +103,21 @@ export function activate(context: ExtensionContext) {
 		vscode.window.showInformationMessage('File loaded for proof!');
 	});
 
+	context.subscriptions.push(prove);
 
-	const _ = vscode.commands.registerCommand('why3.runTransformation', () => {
-		client.sendNotification('proof/runTransformation', []);
+	const trans = vscode.commands.registerCommand('why3.runTransformation', (uri:DocumentUri, node : number, command : string) => {
+		client.sendNotification('proof/runTransformation', { uri: uri, node: node, command: command });
 	});
+
+	context.subscriptions.push(trans);
 
 	// Start the client. This will also launch the server
 	client.start();
 }
+
+export function deactivate(): Thenable<void> | undefined {
+	if (!client) {
+	  return undefined;
+	}
+	return client.stop();
+  }
