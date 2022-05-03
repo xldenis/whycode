@@ -91,16 +91,11 @@ export function activate(context: ExtensionContext) {
 	});
 
 	// Seems unnecessary?
-	const prove = vscode.commands.registerCommand('extension.Prove', () => {
-		// Add a document URI to a list of things we care about
-		if (vscode.window.activeTextEditor != undefined) {
-			let doc = vscode.window.activeTextEditor.document;
-			proofDocs.add(doc.uri);
-			client.sendNotification(DidOpenTextDocumentNotification.type,  createConverter().asOpenTextDocumentParams(doc));
+	const prove = vscode.commands.registerCommand('extension.ResetSession', () => {
+		let uri : DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
+		client.sendNotification('proof/resetSession', { uri: uri, dummy: true});
 
-		}
-
-		vscode.window.showInformationMessage('File loaded for proof!');
+		vscode.window.showInformationMessage('Session Reset');
 	});
 
 	context.subscriptions.push(prove);

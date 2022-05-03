@@ -2,8 +2,7 @@ open Why3
 
 module RunTransformationNotification = struct
   let uri_of_yojson j =
-    try Ok (Lsp.Types.DocumentUri.t_of_yojson j)
-    with _ -> Error "could not parse uri"
+    try Ok (Lsp.Types.DocumentUri.t_of_yojson j) with _ -> Error "could not parse uri"
 
   type t = {
     command : string;
@@ -15,16 +14,32 @@ module RunTransformationNotification = struct
   let create com node uri = { command = com; node; uri }
 end
 
+module ResetSessionNotification = struct
+  let uri_of_yojson j =
+    try Ok (Lsp.Types.DocumentUri.t_of_yojson j) with _ -> Error "could not parse uri"
+
+  type t = { uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson] dummy : bool }
+  [@@deriving of_yojson] [@@yojson.allow_extra_fields]
+end
+
 let loc_to_range loc =
   let _, l, c1, c2 = Loc.get loc in
   Lsp.Types.Range.create (* why is this necessary?       ----------v *)
     ~start:(Lsp.Types.Position.create ~line:(l - 1) ~character:c1)
     ~end_:(Lsp.Types.Position.create ~line:(l - 1) ~character:c2)
 
-let warn loc message =
-  Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Warning
-    ~source:"Why3" ~message
+let locs_to_range s e =
+  let _, l1, c1, _ = Loc.get s in
+  let _, l2, _, c2 = Loc.get e in
+  Lsp.Types.Range.create (* why is this necessary?       ----------v *)
+    ~start:(Lsp.Types.Position.create ~line:(l1 - 1) ~character:c1)
+    ~end_:(Lsp.Types.Position.create ~line:(l2 - 1) ~character:c2)
 
+let warn loc message =
+  Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Warning ~source:"Why3" ~message
+
+let error loc message =
+  Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Error ~source:"Why3" ~message
 (* TODO
    1. Kill whole server when one of the various async tasks dies
    2. Reduce the need to spawn as much?
@@ -43,8 +58,7 @@ module TaskTree = struct
   type node_info = { name : string; proved : bool }
 
   (* seperate out the node body from the tree itself *)
-  type task_tree =
-    | Node of node_ID * node_info * task_info option * task_tree list
+  type task_tree = Node of node_ID * node_info * task_info option * task_tree list
 
   let rec add_tree parent_id tree self =
     match self with
@@ -55,22 +69,26 @@ module TaskTree = struct
   let rec remove_tree node_id self =
     match self with
     | Node (id, nm, task, children) ->
-        if node_id = id then failwith "cannot remove root node"
+        if node_id = id then None
         else
-          let check (Node (id, _, _, _) as n) =
-            if id = node_id then None else Some (remove_tree id n)
-          in
-          Node (id, nm, task, List.filter_map check children)
+          let check (Node (id, _, _, _) as n) = if id = node_id then None else remove_tree id n in
+          Some (Node (id, nm, task, List.filter_map check children))
 
   let rec update_node node_id f self =
     let (Node (id, nm, task, children)) = self in
-    if node_id = id then f self
-    else Node (id, nm, task, List.map (update_node node_id f) children)
+    if node_id = id then f self else Node (id, nm, task, List.map (update_node node_id f) children)
+
+  (* let to_list self : (node_ID * node_info * task_info option) list =
+     let rec worker acc self =
+       let (Node (id, info, task, children)) = self in
+       List.fold_left worker ((id, info, task) :: acc) children
+     in
+     worker [] self *)
 
   let to_list self : (node_ID * node_info * task_info option) list =
     let rec worker acc self =
       let (Node (id, info, task, children)) = self in
-      List.fold_left worker ((id, info, task) :: acc) children
+      match children with [] -> (id, info, task) :: acc | _ -> List.fold_left worker acc children
     in
     worker [] self
 end
@@ -86,15 +104,13 @@ let send_req (s : session_data) req =
 
 let add_node (s : session_data) p_id n =
   let _, t = s in
-  match !t with
-  | None -> t := Some n
-  | Some tr -> t := Some (add_tree p_id n tr)
+  match !t with None -> t := Some n | Some tr -> t := Some (add_tree p_id n tr)
 
 let remove_node s id : unit =
   let _, t = s in
   match !t with
   | None -> failwith "cannot remove from empty tree"
-  | Some tr -> t := Some (remove_tree id tr)
+  | Some tr -> t := remove_tree id tr
 
 let edit_node s id f : unit =
   let _, t = s in
@@ -108,15 +124,13 @@ let get_tasks s : (node_ID * node_info * task_info) list =
   | None -> []
   | Some tr ->
       List.filter_map
-        (fun (id, nm, t) ->
-          match t with Some t -> Some (id, nm, t) | None -> None)
+        (fun (id, nm, t) -> match t with Some t -> Some (id, nm, t) | None -> None)
         (to_list tr)
 
 open Linol_lwt
 
 module type SERVER = sig
-  val init_server :
-    ?send_source:bool -> Whyconf.config -> Env.env -> string -> unit
+  val init_server : ?send_source:bool -> Whyconf.config -> Env.env -> string -> unit
 end
 
 (* let new_node_notif () : unit Jsonrpc.Message.t =
@@ -159,21 +173,31 @@ let make_diagnostics srvr =
   List.filter_map
     (fun (_, info, t) ->
       if info.proved then None
-      else match t.goal with Some g -> Some (warn g info.name) | None -> None)
+      else match t.goal with Some g -> Some (error g info.name) | None -> None)
     tasks
 
-let handle_notification s (notify_back : Jsonrpc2.notify_back)
-    (notif : notification) =
-  let* _ =
-    notify_back#send_log_msg ~type_:MessageType.Info
-      (Format.asprintf "%a" print_notify notif)
-  in
+let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
+
+let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notification) =
+  let* _ = log_info notify_back (Format.asprintf "%a" print_notify notif) in
   match notif with
-  | Message m ->
-      notify_back#send_notification
-        (ShowMessage
-           (ShowMessageParams.create ~type_:(message_notif_level m)
-              ~message:(Format.asprintf "%a" print_msg m)))
+  | Message m -> (
+      let* _ =
+        notify_back#send_log_msg ~type_:(message_notif_level m) (Format.asprintf "%a" print_msg m)
+      in
+
+      match m with
+      | Parse_Or_Type_Error (s, e, msg) ->
+          notify_back#send_diagnostic
+            [
+              Lsp.Types.Diagnostic.create () ~range:(locs_to_range s e) ~severity:Error
+                ~source:"Why3" ~message:msg;
+            ]
+      | _ -> return ()
+      (* notify_back#send_notification
+         (ShowMessage
+            (ShowMessageParams.create ~type_:(message_notif_level m)
+               ~message:(Format.asprintf "%a" print_msg m))) *))
   | Initialized _ -> return ()
   | Saved -> return ()
   (* | Dead _ -> IO_lwt.failwith "Server Died" *)
@@ -182,6 +206,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back)
       add_node s par_id n;
       (* Ask for the task of every 'goal' node so that we can get the
          spans of the unsolved goals *)
+      let diags = make_diagnostics s in
+      let* _ = notify_back#send_diagnostic diags in
       match ty with
       | NGoal ->
           send_req s (Get_task (id, false, true));
@@ -193,7 +219,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back)
       edit_node s id (fun node ->
           let (Node (id, nm, _, children)) = node in
           Node (id, nm, Some task_info, children));
-      return ()
+      let diags = make_diagnostics s in
+      notify_back#send_diagnostic diags
   | Node_change (id, upd) ->
       edit_node s id (fun node ->
           let (Node (id, info, task, children)) = node in
@@ -210,7 +237,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back)
       notify_back#send_diagnostic diags
   | Remove id ->
       remove_node s id;
-      return ()
+      let diags = make_diagnostics s in
+      notify_back#send_diagnostic diags
   | Reset_whole_tree ->
       let _, t = s in
       t := None;
@@ -224,15 +252,13 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back)
   *)
   | _ -> return ()
 
-let mk_server (notify_back : Jsonrpc2.notify_back) config env session_path :
-    session_data =
+let mk_server (notify_back : Jsonrpc2.notify_back) config env session_path : session_data =
   let open Itp_server in
   let requests = ref [] in
   let tree = ref None in
 
   let module P : Protocol = struct
-    let notify msg =
-      spawn (fun () -> handle_notification (requests, tree) notify_back msg)
+    let notify msg = spawn (fun () -> handle_notification (requests, tree) notify_back msg)
 
     let get_requests () =
       let l = !requests in
@@ -301,14 +327,10 @@ class why_lsp_server =
     config <- config';
     env <- env'
 
-    val file_to_session : (Lsp.Types.DocumentUri.t, session_id) Hashtbl.t =
-      Hashtbl.create 32
-
+    val file_to_session : (Lsp.Types.DocumentUri.t, session_id) Hashtbl.t = Hashtbl.create 32
     val sessions : (session_id, session_data) Hashtbl.t = Hashtbl.create 32
     val buffers : (Lsp.Types.DocumentUri.t, unit) Hashtbl.t = Hashtbl.create 32
-
-    method! private config_code_action_provider =
-      `CodeActionOptions (CodeActionOptions.create ())
+    method! private config_code_action_provider = `CodeActionOptions (CodeActionOptions.create ())
 
     method private get_server (uri : Lsp.Types.DocumentUri.t) =
       let sess_id = self#find_session uri in
@@ -328,6 +350,7 @@ class why_lsp_server =
         | Some cont -> cont
         | None ->
             let s = mk_server notify_back config env sess_id in
+            spawn (fun () -> log_info notify_back "Adding session");
             Hashtbl.add sessions sess_id s;
             s
       in
@@ -347,19 +370,16 @@ class why_lsp_server =
           Hashtbl.replace file_to_session uri sess;
           sess
 
-    method on_notif_doc_did_open ~notify_back d ~content =
-      self#_on_doc ~notify_back d.uri content
+    method on_notif_doc_did_open ~notify_back d ~content = self#_on_doc ~notify_back d.uri content
 
-    method on_notif_doc_did_change ~notify_back d _c ~old_content:_old
-        ~new_content =
+    method on_notif_doc_did_change ~notify_back d _c ~old_content:_old ~new_content =
       self#_on_doc ~notify_back d.uri new_content
 
-    method on_notif_doc_did_close ~notify_back:_ d =
+    method on_notif_doc_did_close ~notify_back d =
       Hashtbl.remove buffers d.uri;
-      Linol_lwt.Jsonrpc2.IO.return ()
+      notify_back#send_diagnostic []
 
-    method private on_did_save_notif ~notify_back
-        (n : DidSaveTextDocumentParams.t) =
+    method private on_did_save_notif ~notify_back (n : DidSaveTextDocumentParams.t) =
       let* srvr = self#get_server n.textDocument.uri in
       send_req srvr Save_req;
       return ()
@@ -378,8 +398,7 @@ class why_lsp_server =
                   (not i.proved)
                   && c.range.start.line = l - 1
                   && c.range.end_.line = l - 1
-                  && c1 <= c.range.start.character
-                  && c.range.end_.character <= c2
+                  && c1 <= c.range.start.character && c.range.end_.character <= c2
                 then Some n
                 else search ts
             | None -> search ts
@@ -389,10 +408,7 @@ class why_lsp_server =
       let found_task = search tasks in
       let mk_command trans id =
         Command.create ~title:trans ~command:"why3.runTransformation"
-          ~arguments:
-            [
-              DocumentUri.yojson_of_t c.textDocument.uri; `Int id; `String trans;
-            ]
+          ~arguments:[ DocumentUri.yojson_of_t c.textDocument.uri; `Int id; `String trans ]
           ()
       in
       match found_task with
@@ -401,16 +417,14 @@ class why_lsp_server =
           let open Wstdlib in
           let actions =
             Mstr.fold_left
-              (fun acc k (_ : Whyconf.config_strategy) ->
-                `Command (mk_command k id) :: acc)
+              (fun acc k (_ : Whyconf.config_strategy) -> `Command (mk_command k id) :: acc)
               [] ss
           in
           return (Some (List.rev actions))
       | None -> return None
 
     (* TODO: ideally should be request but we don't have a meaninful response to give *)
-    method private on_run_command_notif ~notify_back
-        (n : RunTransformationNotification.t) =
+    method private on_run_command_notif ~notify_back (n : RunTransformationNotification.t) =
       let* srvr = self#get_server n.uri in
       send_req srvr (Command_req (n.node, n.command));
       return ()
@@ -420,17 +434,25 @@ class why_lsp_server =
       match notif with
       | Lsp.Client_notification.UnknownNotification m -> begin
           match m.method_ with
-          | "proof/runTransformation" -> (
-              let params =
-                Json.message_params m RunTransformationNotification.of_yojson
-              in
+          | "proof/runTransformation" -> begin
+              let params = Json.message_params m RunTransformationNotification.of_yojson in
 
-              match params with
-              | Ok (Ok p) -> self#on_run_command_notif ~notify_back p
-              | Ok (Error e) | Error e -> failwith e)
+              match Result.join params with
+              | Ok p -> self#on_run_command_notif ~notify_back p
+              | Error e -> failwith e
+            end
+          | "proof/resetSession" -> begin
+              let params = Json.message_params m ResetSessionNotification.of_yojson in
+              match Result.join params with
+              | Ok p ->
+                  let* srvr = self#get_server p.uri in
+                  send_req srvr Reset_proofs_req;
+                  send_req srvr Reload_req;
+                  return ()
+              | Error e -> failwith e
+            end
           | _ -> return ()
         end
-      | Lsp.Client_notification.DidSaveTextDocument n ->
-          self#on_did_save_notif ~notify_back n
+      | Lsp.Client_notification.DidSaveTextDocument n -> self#on_did_save_notif ~notify_back n
       | _ -> return ()
   end

@@ -23,8 +23,8 @@
 				"title": "Start Why3"
 			},
 			{
-				"command": "extension.Prove",
-				"title": "Prove file with Why3"
+				"command": "extension.ResetSession",
+				"title": "Reset Proof Session"
 			}
 		],
 		"configuration": {
@@ -45,7 +45,7 @@
 						"messages",
 						"verbose"
 					],
-					"default": "verbose",
+					"default": "messages",
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}

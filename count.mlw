@@ -1,0 +1,10 @@
+use mach.array.Array32
+use int.Int
+use mach.int.Int32
+let count (a : array 'a) : int32 =
+    let ref i  = 0 in
+    while i < a.length do
+        variant { a.length - i }  
+        i <- i + 1
+    done;
+    i

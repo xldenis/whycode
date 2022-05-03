@@ -29,8 +29,7 @@ module Scheduler = struct
     let rec aux l =
       match l with
       | [] -> [ (ms, t, f) ]
-      | ((_, t1, _) as hd) :: rem ->
-          if t < t1 then (ms, t, f) :: l else hd :: aux rem
+      | ((_, t1, _) as hd) :: rem -> if t < t1 then (ms, t, f) :: l else hd :: aux rem
     in
     timeout_handler := aux !timeout_handler
 
