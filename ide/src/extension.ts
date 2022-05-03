@@ -72,7 +72,7 @@ export function activate(context: ExtensionContext) {
 		if (event.contentChanges.length === 0) {
             return;
         }
-		vscode.window.showInformationMessage("Document Change!");
+		// vscode.window.showInformationMessage("Document Change!");
 
 		// check if the document which changed is one we care about
 		// if so, forward that to the LSP server.
@@ -83,7 +83,7 @@ export function activate(context: ExtensionContext) {
 	});
 
 	workspace.onDidCloseTextDocument((e) => {
-		vscode.window.showInformationMessage("Document Close!");
+		// vscode.window.showInformationMessage("Document Close!");
 		// If the document is in our list, then remove it.
 		proofDocs.delete(e.uri);
 		// And notify the server
