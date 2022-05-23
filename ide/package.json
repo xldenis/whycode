@@ -6,7 +6,7 @@
 	"publisher": "vscode-samples",
 	"repository": "https://github.com/xldenis/whycode",
 	"engines": {
-		"vscode": "^1.34.0"
+		"vscode": "^1.65.0"
 	},
 	"categories": [
 		"Other"
@@ -27,6 +27,12 @@
 				"title": "Reset Proof Session"
 			}
 		],
+		"views": {
+			"debug" : [{
+				"id": "why3_tasks",
+				"name" : "Task Tree"
+			}]
+		},
 		"configuration": {
 			"type": "object",
 			"title": "Why3 Configuration",
@@ -45,7 +51,7 @@
 						"messages",
 						"verbose"
 					],
-					"default": "messages",
+					"default": "verbose",
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
@@ -58,11 +64,11 @@
 		"watch": "tsc -watch -p ./"
 	},
 	"dependencies": {
-		"vscode-languageclient": "^7.0.0"
+		"vscode-languageclient": "^8.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "^12.12.0",
-		"@types/vscode": "^1.34.0",
+		"@types/vscode": "^1.65.0",
 		"@typescript-eslint/eslint-plugin": "^4.16.0",
 		"@typescript-eslint/parser": "^4.16.0",
 		"eslint": "^7.21.0",

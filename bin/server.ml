@@ -22,6 +22,57 @@ module ResetSessionNotification = struct
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]
 end
 
+(* Temporary, we should instead probably have a 'TreeChangeNotification' which bundles updates *)
+module NewNodeNotification = struct
+  (* should include a 'session identifier' to indicate which tree it belongs to *)
+  type t = { id : int; parent_id : int; name : string; proved: bool }
+  (* also type and detached *)
+  [@@deriving to_yojson] [@@yojson.allow_extra_fields]
+
+  let to_jsonrpc n : Jsonrpc.Message.notification =
+    {
+      method_ = "proof/addTreeNode";
+      id = ();
+      params = Some (Jsonrpc.Message.Structured.of_json (to_yojson n));
+    }
+end
+
+module UpdateNodeNotification = struct
+  type info =
+    | Proved of bool
+    (*todo use real type *)
+    | NameChange of string
+    | StatusChange of unit
+  [@@deriving to_yojson]
+
+  type t = { id : int; info : info } [@@deriving to_yojson]
+
+  let of_notif (n : Itp_communication.notification) : t =
+    match n with
+    | Node_change (id, info) -> begin
+        match info with
+        | Proved b -> { id; info = Proved b }
+        | Name_change s -> { id; info = NameChange s }
+        | Proof_status_change _ -> { id; info = StatusChange () }
+      end
+    | _ -> failwith "of_notif: wrong notification"
+
+  let to_jsonrpc n : Jsonrpc.Message.notification =
+    {
+      method_ = "proof/changeTreeNode";
+      id = ();
+      params = Some (Jsonrpc.Message.Structured.of_json (to_yojson n));
+    }
+end
+
+module DeleteNodeNotification = struct
+  type t = { id : int }
+    [@@deriving to_yojson]
+
+  let to_jsonrpc n : Jsonrpc.Message.notification =
+  { method_ = "proof/removeTreeNode"; id = (); params = Some(Jsonrpc.Message.Structured.of_json (to_yojson n))}
+end
+
 let loc_to_range loc =
   let _, l, c1, c2 = Loc.get loc in
   Lsp.Types.Range.create (* why is this necessary?       ----------v *)
@@ -201,13 +252,18 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
   | Initialized _ -> return ()
   | Saved -> return ()
   (* | Dead _ -> IO_lwt.failwith "Server Died" *)
-  | New_node (id, par_id, ty, nm, _) -> (
-      let n = Node (id, { name = nm; proved = false }, None, []) in
+  | New_node (id, par_id, ty, nm, proved) -> (
+      let n = Node (id, { name = nm; proved }, None, []) in
       add_node s par_id n;
       (* Ask for the task of every 'goal' node so that we can get the
          spans of the unsolved goals *)
       let diags = make_diagnostics s in
       let* _ = notify_back#send_diagnostic diags in
+      let* _ =
+        notify_back#send_notification
+          (UnknownNotification
+             (NewNodeNotification.to_jsonrpc { id; parent_id = par_id; name = nm; proved }))
+      in
       match ty with
       | NGoal ->
           send_req s (Get_task (id, false, true));
@@ -222,6 +278,12 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
       let diags = make_diagnostics s in
       notify_back#send_diagnostic diags
   | Node_change (id, upd) ->
+      let* _ =
+        notify_back#send_notification
+          (UnknownNotification
+             (UpdateNodeNotification.to_jsonrpc (UpdateNodeNotification.of_notif notif)))
+      in
+
       edit_node s id (fun node ->
           let (Node (id, info, task, children)) = node in
           match upd with
@@ -237,11 +299,23 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
       notify_back#send_diagnostic diags
   | Remove id ->
       remove_node s id;
+      let* _ =
+        notify_back#send_notification
+          (UnknownNotification
+             (DeleteNodeNotification.to_jsonrpc { id }))
+      in
+
       let diags = make_diagnostics s in
       notify_back#send_diagnostic diags
   | Reset_whole_tree ->
       let _, t = s in
       t := None;
+      let* _ =
+        notify_back#send_notification
+          (UnknownNotification
+             (DeleteNodeNotification.to_jsonrpc { id = 0 }))
+      in
+
       return ()
   (*
       | Next_Unproven_Node_Id _ -> IO_lwt.failwith "Next_Unproven_Node_Id"

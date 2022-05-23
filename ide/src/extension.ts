@@ -14,11 +14,13 @@ import {
 	URI
 } from 'vscode-languageclient/node';
 import { createConverter } from 'vscode-languageclient/lib/common/codeConverter';
+import { countReset } from 'console';
+import { GoalNode, TaskDataProvider, TaskNode, TaskTree } from './tree';
 
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-	
+
 	console.log('Why3 activated!');
 
 	const disposable = vscode.commands.registerCommand('extension.Why', () => {
@@ -40,8 +42,8 @@ export function activate(context: ExtensionContext) {
 	// If the extension is launched in debug mode then the debug server options are used
 	// Otherwise the run options are used
 	const serverOptions: ServerOptions = {
-		run: { 
-			command: serverModule, 
+		run: {
+			command: serverModule,
 			// args: []
 		},
 		debug: {
@@ -50,7 +52,7 @@ export function activate(context: ExtensionContext) {
 		}
 	};
 
-	
+
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for plain text documents
@@ -76,8 +78,8 @@ export function activate(context: ExtensionContext) {
 
 		// check if the document which changed is one we care about
 		// if so, forward that to the LSP server.
-		if (proofDocs.has(event.document.uri)) { 
-			// This seems to only be for 'incremental sync' 
+		if (proofDocs.has(event.document.uri)) {
+			// This seems to only be for 'incremental sync'
 			client.sendNotification(DidChangeTextDocumentNotification.type, createConverter().asChangeTextDocumentParams(event));
 		}
 	});
@@ -106,8 +108,41 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(trans);
 
+	const tasks = new TaskTree();
+	const treeDataProvider = new TaskDataProvider(tasks);
+
+	const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView('why3_tasks', { treeDataProvider });
+	context.subscriptions.push(view);
+
+	client.onNotification('proof/changeTreeNode', params => {
+		let node = tasks.getChild(params.id);
+		console.log("update node ", params);
+		if (params.info[0] == 'Proved' && node != undefined) {
+			node.proved = params.info[1];
+		};
+		treeDataProvider.refresh();
+	});
+
+	client.onNotification('proof/removeTreeNode', params => {
+		console.log("remove node", params);
+		tasks.remove(params.id);
+		treeDataProvider.refresh();
+
+	});
+
+	client.onNotification('proof/addTreeNode', params => {
+		let node = new GoalNode(params.id, params.parent_id, params.name, false, []);
+		tasks.insertChild(params.parent_id, node);
+		console.log("create node ", params);
+		view.reveal(node);
+
+		treeDataProvider.refresh();
+	});
+
 	// Start the client. This will also launch the server
 	client.start();
+
+
 }
 
 export function deactivate(): Thenable<void> | undefined {
