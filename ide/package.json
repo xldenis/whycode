@@ -25,11 +25,15 @@
 			{
 				"command": "extension.ResetSession",
 				"title": "Reset Proof Session"
+			},
+			{
+				"command": "taskTree.runAuto0",
+				"title": "Run Auto 0"
 			}
 		],
 		"views": {
 			"debug" : [{
-				"id": "why3_tasks",
+				"id": "taskTree",
 				"name" : "Task Tree"
 			}]
 		},
@@ -64,6 +68,15 @@
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
+		},
+		"menus" : {
+			"view/item/context": [
+				{
+					"command" : "taskTree.runAuto0",
+					"group": "inline",
+					"when": "view == taskTree"
+				}
+			]
 		}
 	},
 	"scripts": {

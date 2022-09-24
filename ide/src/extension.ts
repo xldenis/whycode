@@ -26,10 +26,18 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	// The server is implemented in node
-	// const serverModule : string = context.asAbsolutePath(
-	// 	path.join('server', 'out', 'server.js')
-	// );
+	const tasks = new TaskTree();
+	const treeDataProvider = new TaskDataProvider(tasks);
+
+	const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView('taskTree', { treeDataProvider });
+	context.subscriptions.push(view);
+
+	vscode.commands.registerCommand('taskTree.runAuto0', (task : TaskNode) => {
+		vscode.commands.executeCommand("why3.runTransformation", task.uri, task.id, "Auto_level_0");
+		vscode.window.showInformationMessage(`Called runAuto0 on ${task.uri}`)
+
+	}	
+	)
 
 	let serverSetting : string | undefined = vscode.workspace.getConfiguration('whycode').get('executablePath');
 	if (serverSetting == undefined) {
@@ -80,7 +88,6 @@ export function activate(context: ExtensionContext) {
 		if (event.contentChanges.length === 0) {
             return;
         }
-		// vscode.window.showInformationMessage("Document Change!");
 
 		// check if the document which changed is one we care about
 		// if so, forward that to the LSP server.
@@ -114,12 +121,6 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(trans);
 
-	const tasks = new TaskTree();
-	const treeDataProvider = new TaskDataProvider(tasks);
-
-	const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView('why3_tasks', { treeDataProvider });
-	context.subscriptions.push(view);
-
 	client.onNotification('proof/changeTreeNode', params => {
 		let node = tasks.getChild(params.id);
 		console.log("update node ", params);
@@ -137,7 +138,8 @@ export function activate(context: ExtensionContext) {
 	});
 
 	client.onNotification('proof/addTreeNode', params => {
-		let node = new GoalNode(params.id, params.parent_id, params.name, false, []);
+
+		let node = new GoalNode(params.uri, params.id, params.parent_id, params.name, false, []);
 		tasks.insertChild(params.parent_id, node);
 		console.log("create node ", params);
 		view.reveal(node);

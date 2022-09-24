@@ -10,9 +10,11 @@ class Unproved implements ProofStatus {
   }
 }
 
+// Provide access to document URI
 export abstract class TaskNode {
   public proved = false 
   constructor(
+    readonly uri: vscode.Uri,
     readonly id: NodeId,
     readonly parentId: NodeId,
     public name: string,
@@ -23,37 +25,26 @@ export abstract class TaskNode {
 
 type NewFileNode = NewNodeNotif<NodeType.NFile>
 class FileNode extends TaskNode {
-  static fromNotification(notif: NewFileNode) {
-    return new FileNode(notif[1], notif[2], notif[4], notif[5], [])
-  }
 }
 
 type NewTheoryNode = NewNodeNotif<NodeType.NTheory>
 class TheoryNode extends TaskNode {
-  static fromNotification(notif: NewTheoryNode) {
-    return new TheoryNode(notif[1], notif[2], notif[4], notif[5], [])
-  }
 }
 
 type NewGoalNode = NewNodeNotif<NodeType.NGoal>
 export class GoalNode extends TaskNode {
-  static fromNotification(notif: NewGoalNode) {
-    return new GoalNode(notif[1], notif[2], notif[4], notif[5], [])
-  }
 }
 
 type NewProofAttemptNode = NewNodeNotif<NodeType.NProofAttempt>
 class ProofAttemptNode extends TaskNode {
   constructor(
+    readonly uri: vscode.Uri,
     readonly id: NodeId,
     readonly parentId: NodeId,
     readonly name: string,
     readonly detached: boolean,
     public proofStatus?: AttemptStatus
-  ) { super(id, parentId, name, detached, []) }
-  static fromNotification(notif: NewProofAttemptNode) {
-    return new ProofAttemptNode(notif[1], notif[2], notif[4], notif[5], undefined)
-  }
+  ) { super(uri, id, parentId, name, detached, []) }
 
   // get proved(): boolean {
   //   if (this.proofStatus == undefined) {
@@ -69,9 +60,6 @@ class ProofAttemptNode extends TaskNode {
 
 type NewTransformationNode = NewNodeNotif<NodeType.NTransformation>
 class TransformationNode extends TaskNode {
-  static fromNotification(notif: NewTransformationNode) {
-    return new TransformationNode(notif[1], notif[2], notif[4], notif[5], [])
-  }
 }
 
 export class TaskTree {

@@ -24,8 +24,9 @@ end
 
 (* Temporary, we should instead probably have a 'TreeChangeNotification' which bundles updates *)
 module NewNodeNotification = struct
-  (* should include a 'session identifier' to indicate which tree it belongs to *)
-  type t = { id : int; parent_id : int; name : string; proved: bool }
+  let uri_to_yojson j = Lsp.Types.DocumentUri.yojson_of_t j
+
+  type t = { uri: Lsp.Uri.t [@to_yojson uri_to_yojson]; id : int; parent_id : int; name : string; proved: bool }
   (* also type and detached *)
   [@@deriving to_yojson] [@@yojson.allow_extra_fields]
 
@@ -147,30 +148,33 @@ end
 open Itp_communication
 open TaskTree
 
-type session_data = ide_request list ref * task_tree option ref
+type session_data = Lsp.Uri.t * ide_request list ref * task_tree option ref
+
+let session_path (s : session_data) : Lsp.Uri.t =
+  let (p, _, _) = s in p
 
 let send_req (s : session_data) req =
-  let r, _ = s in
+  let _, r, _ = s in
   r := req :: !r
 
 let add_node (s : session_data) p_id n =
-  let _, t = s in
+  let _, _, t = s in
   match !t with None -> t := Some n | Some tr -> t := Some (add_tree p_id n tr)
 
-let remove_node s id : unit =
-  let _, t = s in
+let remove_node (s : session_data) id : unit =
+  let _, _, t = s in
   match !t with
   | None -> failwith "cannot remove from empty tree"
   | Some tr -> t := remove_tree id tr
 
-let edit_node s id f : unit =
-  let _, t = s in
+let edit_node (s : session_data) id f : unit =
+  let _, _, t = s in
   match !t with
   | None -> failwith "cannot edit empty tree"
   | Some tr -> t := Some (update_node id f tr)
 
-let get_tasks s : (node_ID * node_info * task_info) list =
-  let _, t = s in
+let get_tasks (s : session_data) : (node_ID * node_info * task_info) list =
+  let _, _, t = s in
   match !t with
   | None -> []
   | Some tr ->
@@ -222,7 +226,7 @@ let message_notif_level m =
 (*
   Build a map containing the unsolved goals of every file who's spans are found in the sessions
 *)
-let get_unsolved_tasks (srvr : _) : (string, Diagnostic.t list) Hashtbl.t =
+let get_unsolved_tasks (srvr : session_data) : (string, Diagnostic.t list) Hashtbl.t =
   let tasks = get_tasks srvr in
 
   List.fold_left (fun acc (_, info, t) ->
@@ -248,7 +252,7 @@ let send_all_diags (notify_back : Jsonrpc2.notify_back) (diags: (string, Diagnos
     Lwt.(<&>) lwt (notify_back#send_diagnostic diags)
   ) diags Lwt.return_unit
 
-let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notification) =
+let handle_notification (s : session_data) (notify_back : Jsonrpc2.notify_back) (notif : notification) =
   let* _ = log_info notify_back (Format.asprintf "%a" print_notify notif) in
   match notif with
   | Message m ->
@@ -279,7 +283,7 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
       let* _ =
         notify_back#send_notification
           (UnknownNotification
-             (NewNodeNotification.to_jsonrpc { id; parent_id = par_id; name = nm; proved }))
+             (NewNodeNotification.to_jsonrpc { uri = (session_path s); id; parent_id = par_id; name = nm; proved }))
       in
       match ty with
       | NGoal ->
@@ -325,7 +329,7 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
       let diags = get_unsolved_tasks s in
       send_all_diags notify_back diags
   | Reset_whole_tree ->
-      let _, t = s in
+      let _, _, t = s in
       t := None;
       let* _ =
         notify_back#send_notification
@@ -349,7 +353,7 @@ let mk_server (notify_back : Jsonrpc2.notify_back) config env session_path : ses
   let tree = ref None in
 
   let module P : Protocol = struct
-    let notify msg = spawn (fun () -> handle_notification (requests, tree) notify_back msg)
+    let notify msg = spawn (fun () -> handle_notification (Lsp.Uri.of_path session_path, requests, tree) notify_back msg)
 
     let get_requests () =
       let l = !requests in
@@ -398,7 +402,7 @@ let mk_server (notify_back : Jsonrpc2.notify_back) config env session_path : ses
   let module Server = Make (S) (P) in
   let _ = (module Server : SERVER) in
   Server.init_server config env session_path;
-  (requests, tree)
+  (Lsp.Uri.of_path session_path, requests, tree)
 
 type session_id = string
 
@@ -523,6 +527,7 @@ class why_lsp_server =
 
     (* TODO: ideally should be request but we don't have a meaninful response to give *)
     method private on_run_command_notif ~notify_back (n : RunTransformationNotification.t) =
+      let* _ = log_info notify_back "Running command" in
       let* srvr = self#get_server n.uri in
       send_req srvr (Command_req (n.node, n.command));
       return ()
