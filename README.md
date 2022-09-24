@@ -6,8 +6,15 @@ This repository contains an experiment in using VsCode as a front-end for the [W
 
 ## Building the Server
 
-To build the server, I strongly recommend using a local `opam` switch which can be created using `opam switch create .`.
-This should actually install all the required dependencies while it's at it. You can then build the project using `dune build`.
+- Create a local opam switch: `opam switch create . 4.14.0`. Do not install the `whycode` package, it *will* fail.
+- Pin `linol` and `linol-lwt`:
+  ```
+   opam pin linol git@github.com:c-cube/linol.git
+   opam pin linol-lwt git@github.com:c-cube/linol.git
+  ```
+- Install the `whycode` package: `opam install .`
+- Build the server: `dune build`
+
 
 ## Building the extension
 
