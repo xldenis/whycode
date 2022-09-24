@@ -20,11 +20,8 @@ import { GoalNode, TaskDataProvider, TaskNode, TaskTree } from './tree';
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-
-	console.log('Why3 activated!');
-
 	const disposable = vscode.commands.registerCommand('extension.Why', () => {
-		vscode.window.showInformationMessage('Proof: ok!');
+		vscode.window.showInformationMessage('Activated');
 	});
 
 	context.subscriptions.push(disposable);
@@ -34,7 +31,15 @@ export function activate(context: ExtensionContext) {
 	// 	path.join('server', 'out', 'server.js')
 	// );
 
-	const serverModule = "/Users/xavier/Code/whycode/_build/default/bin/main.exe"
+	let serverSetting : string | undefined = vscode.workspace.getConfiguration('whycode').get('executablePath');
+	if (serverSetting == undefined) {
+		throw "Could not find server executable"
+	}
+	const serverModule : string = serverSetting!;
+	const serverArgs : string[] =  vscode.workspace.getConfiguration('whycode').get('extraArgs')!;
+
+	console.log('Why3 activated!');
+
 	// The debug options for the server
 	// --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
 	const debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
@@ -44,10 +49,11 @@ export function activate(context: ExtensionContext) {
 	const serverOptions: ServerOptions = {
 		run: {
 			command: serverModule,
-			// args: []
+			args: serverArgs,
 		},
 		debug: {
 			command: serverModule,
+			args: serverArgs,
 			// options: debugOptions
 		}
 	};
@@ -141,8 +147,6 @@ export function activate(context: ExtensionContext) {
 
 	// Start the client. This will also launch the server
 	client.start();
-
-
 }
 
 export function deactivate(): Thenable<void> | undefined {

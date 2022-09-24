@@ -74,14 +74,14 @@ module DeleteNodeNotification = struct
 end
 
 let loc_to_range loc =
-  let _, l, c1, c2 = Loc.get loc in
+  let _, l1, c1, l2, c2 = Loc.get loc in
   Lsp.Types.Range.create (* why is this necessary?       ----------v *)
-    ~start:(Lsp.Types.Position.create ~line:(l - 1) ~character:c1)
-    ~end_:(Lsp.Types.Position.create ~line:(l - 1) ~character:c2)
+    ~start:(Lsp.Types.Position.create ~line:(l1 - 1) ~character:c1)
+    ~end_:(Lsp.Types.Position.create ~line:(l2 - 1) ~character:c2)
 
 let locs_to_range s e =
-  let _, l1, c1, _ = Loc.get s in
-  let _, l2, _, c2 = Loc.get e in
+  let _, l1, c1, _, _ = Loc.get s in
+  let _, _, _, l2, c2 = Loc.get e in
   Lsp.Types.Range.create (* why is this necessary?       ----------v *)
     ~start:(Lsp.Types.Position.create ~line:(l1 - 1) ~character:c1)
     ~end_:(Lsp.Types.Position.create ~line:(l2 - 1) ~character:c2)
@@ -219,25 +219,44 @@ let message_notif_level m =
   | Error _ -> MessageType.Error
   | Open_File_Error _ -> MessageType.Error
 
-let make_diagnostics srvr =
+(*
+  Build a map containing the unsolved goals of every file who's spans are found in the sessions
+*)
+let get_unsolved_tasks (srvr : _) : (string, Diagnostic.t list) Hashtbl.t =
   let tasks = get_tasks srvr in
-  List.filter_map
-    (fun (_, info, t) ->
-      if info.proved then None
-      else match t.goal with Some g -> Some (error g info.name) | None -> None)
-    tasks
+
+  List.fold_left (fun acc (_, info, t) ->
+    if info.proved then
+      acc
+    else
+      match t.goal with
+      | Some g -> begin let (file, _, _, _, _) = Loc.get g in
+          let prev : _ option = Hashtbl.find_opt acc file in
+          let next  = (error g info.name) :: Option.value prev ~default:[] in
+          Hashtbl.replace acc file next;
+          acc
+        end
+      | None -> acc
+  ) (Hashtbl.create 10) tasks
 
 let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
+
+(* Publish a batch of diagnostics for a set of files *)
+let send_all_diags (notify_back : Jsonrpc2.notify_back) (diags: (string, Diagnostic.t list) Hashtbl.t) =
+  Hashtbl.fold (fun file diags lwt ->
+    notify_back#set_uri (DocumentUri.of_path file);
+    Lwt.(<&>) lwt (notify_back#send_diagnostic diags)
+  ) diags Lwt.return_unit
 
 let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notification) =
   let* _ = log_info notify_back (Format.asprintf "%a" print_notify notif) in
   match notif with
-  | Message m -> (
+  | Message m ->
       let* _ =
         notify_back#send_log_msg ~type_:(message_notif_level m) (Format.asprintf "%a" print_msg m)
       in
 
-      match m with
+      begin match m with
       | Parse_Or_Type_Error (s, e, msg) ->
           notify_back#send_diagnostic
             [
@@ -245,10 +264,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
                 ~source:"Why3" ~message:msg;
             ]
       | _ -> return ()
-      (* notify_back#send_notification
-         (ShowMessage
-            (ShowMessageParams.create ~type_:(message_notif_level m)
-               ~message:(Format.asprintf "%a" print_msg m))) *))
+      end
+
   | Initialized _ -> return ()
   | Saved -> return ()
   (* | Dead _ -> IO_lwt.failwith "Server Died" *)
@@ -257,8 +274,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
       add_node s par_id n;
       (* Ask for the task of every 'goal' node so that we can get the
          spans of the unsolved goals *)
-      let diags = make_diagnostics s in
-      let* _ = notify_back#send_diagnostic diags in
+      let diags = get_unsolved_tasks s in
+      let* _ = send_all_diags notify_back diags in
       let* _ =
         notify_back#send_notification
           (UnknownNotification
@@ -275,8 +292,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
       edit_node s id (fun node ->
           let (Node (id, nm, _, children)) = node in
           Node (id, nm, Some task_info, children));
-      let diags = make_diagnostics s in
-      notify_back#send_diagnostic diags
+      let diags = get_unsolved_tasks s in
+      send_all_diags notify_back diags
   | Node_change (id, upd) ->
       let* _ =
         notify_back#send_notification
@@ -295,8 +312,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
               Node (id, info, task, children)
           | _ -> node);
       (* Do some sort of coalescing to avoid spamming diagnostics *)
-      let diags = make_diagnostics s in
-      notify_back#send_diagnostic diags
+      let diags = get_unsolved_tasks s in
+      send_all_diags notify_back diags
   | Remove id ->
       remove_node s id;
       let* _ =
@@ -305,8 +322,8 @@ let handle_notification s (notify_back : Jsonrpc2.notify_back) (notif : notifica
              (DeleteNodeNotification.to_jsonrpc { id }))
       in
 
-      let diags = make_diagnostics s in
-      notify_back#send_diagnostic diags
+      let diags = get_unsolved_tasks s in
+      send_all_diags notify_back diags
   | Reset_whole_tree ->
       let _, t = s in
       t := None;
@@ -431,7 +448,8 @@ class why_lsp_server =
       send_req srvr Reload_req;
       spawn (fun () ->
           let* _ = Lwt_unix.sleep 0.5 in
-          notify_back#send_diagnostic (make_diagnostics srvr));
+          send_all_diags notify_back (get_unsolved_tasks srvr)
+      );
       return ()
 
     method private find_session (uri : Lsp.Types.DocumentUri.t) : session_id =
@@ -467,11 +485,17 @@ class why_lsp_server =
         | ((_, i, t) as n) :: ts -> begin
             match t.goal with
             | Some g ->
-                let _, l, c1, c2 = Loc.get g in
+                (* Send multi-line diagnostics! *)
+                let _, l1, c1, l2, c2 = Loc.get g in
+
+                spawn (fun () -> log_info notify_back (
+                  Format.asprintf "finding actions for [%d, %d] -> [%d, %d],  goal: [%d, %d] -> [%d, %d]" c.range.start.line c.range.start.character c.range.end_.line c.range.end_.character l1 c1 l2 c2)
+                );
+
                 if
                   (not i.proved)
-                  && c.range.start.line = l - 1
-                  && c.range.end_.line = l - 1
+                  && c.range.start.line = l1
+                  && c.range.end_.line = l2
                   && c1 <= c.range.start.character && c.range.end_.character <= c2
                 then Some n
                 else search ts

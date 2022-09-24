@@ -3,7 +3,7 @@
 	"displayName": "whycode",
 	"description": "Why3 LSP client",
 	"version": "0.0.1",
-	"publisher": "vscode-samples",
+	"publisher": "xldenis",
 	"repository": "https://github.com/xldenis/whycode",
 	"engines": {
 		"vscode": "^1.65.0"
@@ -35,8 +35,17 @@
 		},
 		"configuration": {
 			"type": "object",
-			"title": "Why3 Configuration",
+			"title": "Why3",
 			"properties": {
+				"whycode.executablePath": {
+					"type": "string",
+					"description": "Specifies the path at which the WhyCode executable can be found"
+				},
+				"whycode.extraArgs": {
+					"type": "array",
+					"description": "Extra arguments to provide Why3",
+					"default": []
+				},
 				"whycode.maxNumberOfProblems": {
 					"scope": "resource",
 					"type": "number",
