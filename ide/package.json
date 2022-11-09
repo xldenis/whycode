@@ -29,13 +29,31 @@
 			{
 				"command": "taskTree.runAuto0",
 				"title": "Run Auto 0"
+			},
+			{
+				"command": "taskTree.runAuto1",
+				"title": "Run Auto 1"
+			},
+			{
+				"command": "taskTree.runAuto2",
+				"title": "Run Auto 2"
+			},
+			{
+				"command": "taskTree.runAuto3",
+				"title": "Run Auto 3"
+			},
+			{
+				"command": "taskTree.splitVC",
+				"title": "Run Split VC"
 			}
 		],
 		"views": {
-			"debug" : [{
-				"id": "taskTree",
-				"name" : "Task Tree"
-			}]
+			"debug": [
+				{
+					"id": "taskTree",
+					"name": "Task Tree"
+				}
+			]
 		},
 		"configuration": {
 			"type": "object",
@@ -64,16 +82,36 @@
 						"messages",
 						"verbose"
 					],
-					"default": "verbose",
+					"default": "messages",
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
 		},
-		"menus" : {
+		"menus": {
 			"view/item/context": [
 				{
-					"command" : "taskTree.runAuto0",
-					"group": "inline",
+					"command": "taskTree.runAuto0",
+					"group": "context",
+					"when": "view == taskTree"
+				},
+				{
+					"command": "taskTree.runAuto1",
+					"group": "context",
+					"when": "view == taskTree"
+				},
+				{
+					"command": "taskTree.runAuto2",
+					"group": "context",
+					"when": "view == taskTree"
+				},
+				{
+					"command": "taskTree.runAuto3",
+					"group": "context",
+					"when": "view == taskTree"
+				},
+				{
+					"command": "taskTree.splitVC",
+					"group": "context",
 					"when": "view == taskTree"
 				}
 			]

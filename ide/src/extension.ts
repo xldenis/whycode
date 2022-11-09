@@ -32,19 +32,20 @@ export function activate(context: ExtensionContext) {
 	const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView('taskTree', { treeDataProvider });
 	context.subscriptions.push(view);
 
-	vscode.commands.registerCommand('taskTree.runAuto0', (task : TaskNode) => {
+	vscode.commands.registerCommand('taskTree.runAuto0', (task: TaskNode) => {
 		vscode.commands.executeCommand("why3.runTransformation", task.uri, task.id, "Auto_level_0");
-		vscode.window.showInformationMessage(`Called runAuto0 on ${task.uri}`)
+	});
 
-	}	
-	)
+	vscode.commands.registerCommand('taskTree.splitVC', (task: TaskNode) => {
+		vscode.commands.executeCommand("why3.runTransformation", task.uri, task.id, "Split_VC");
+	});
 
-	let serverSetting : string | undefined = vscode.workspace.getConfiguration('whycode').get('executablePath');
+	let serverSetting: string | undefined = vscode.workspace.getConfiguration('whycode').get('executablePath');
 	if (serverSetting == undefined) {
 		throw "Could not find server executable"
 	}
-	const serverModule : string = serverSetting!;
-	const serverArgs : string[] =  vscode.workspace.getConfiguration('whycode').get('extraArgs')!;
+	const serverModule: string = serverSetting!;
+	const serverArgs: string[] = vscode.workspace.getConfiguration('whycode').get('extraArgs')!;
 
 	console.log('Why3 activated!');
 
@@ -70,7 +71,7 @@ export function activate(context: ExtensionContext) {
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
 		// Register the server for plain text documents
-		documentSelector: [{ scheme: 'file', language: 'plaintext' }],
+		documentSelector: [{ scheme: 'file', language: 'plaintext' }, { scheme: 'file', language: 'rust' }],
 		synchronize: {}
 	};
 
@@ -82,12 +83,12 @@ export function activate(context: ExtensionContext) {
 		clientOptions
 	);
 
-	var proofDocs : Set<vscode.Uri> = new Set();
+	var proofDocs: Set<vscode.Uri> = new Set();
 
-	workspace.onDidChangeTextDocument( (event) => {
+	workspace.onDidChangeTextDocument((event) => {
 		if (event.contentChanges.length === 0) {
-            return;
-        }
+			return;
+		}
 
 		// check if the document which changed is one we care about
 		// if so, forward that to the LSP server.
@@ -102,20 +103,20 @@ export function activate(context: ExtensionContext) {
 		// If the document is in our list, then remove it.
 		proofDocs.delete(e.uri);
 		// And notify the server
-		client.sendNotification(DidCloseTextDocumentNotification.type,  createConverter().asCloseTextDocumentParams(e));
+		client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
 	});
 
 	// Seems unnecessary?
 	const prove = vscode.commands.registerCommand('extension.ResetSession', () => {
-		let uri : DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
-		client.sendNotification('proof/resetSession', { uri: uri, dummy: true});
+		let uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
+		client.sendNotification('proof/resetSession', { uri: uri, dummy: true });
 
 		vscode.window.showInformationMessage('Session Reset');
 	});
 
 	context.subscriptions.push(prove);
 
-	const trans = vscode.commands.registerCommand('why3.runTransformation', (uri:DocumentUri, node : number, command : string) => {
+	const trans = vscode.commands.registerCommand('why3.runTransformation', (uri: DocumentUri, node: number, command: string) => {
 		client.sendNotification('proof/runTransformation', { uri: uri, node: node, command: command });
 	});
 
@@ -153,7 +154,7 @@ export function activate(context: ExtensionContext) {
 
 export function deactivate(): Thenable<void> | undefined {
 	if (!client) {
-	  return undefined;
+		return undefined;
 	}
 	return client.stop();
-  }
+}
