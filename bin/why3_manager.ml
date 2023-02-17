@@ -33,20 +33,17 @@ let unsolved_tasks_sess (srvr : session) acc : (string, (_ * Task_tree.node_info
   List.fold_left
     (fun acc (_, info, t) ->
       match t.goal with
-      | Some g -> begin
+      | Some g ->
           let file, _, _, _, _ = Loc.get g in
-          if info.proved then begin
+          if info.proved then (
             let prev : _ option = Hashtbl.find_opt acc file in
             Hashtbl.replace acc file (Option.value prev ~default:[]);
-            acc
-          end
-          else begin
+            acc)
+          else
             let prev : _ option = Hashtbl.find_opt acc file in
             let next = (g, info) :: Option.value prev ~default:[] in
             Hashtbl.replace acc file next;
             acc
-          end
-        end
       | None -> acc)
     acc tasks
 
@@ -74,7 +71,7 @@ type control_flow = Stop | Continue
 let rec for_task_at tasks doc loc func =
   match Seq.uncons tasks with
   | None -> ()
-  | Some ((id, node, info), tasks) -> begin
+  | Some ((id, node, info), tasks) -> (
       let next =
         match info with
         | Some ({ goal = Some goal; _ } as info) ->
@@ -82,8 +79,7 @@ let rec for_task_at tasks doc loc func =
         | _ -> Continue
       in
 
-      match next with Continue -> for_task_at tasks doc loc func | Stop -> ()
-    end
+      match next with Continue -> for_task_at tasks doc loc func | Stop -> ())
 
 let for_tasks_at manager doc (loc : Range.t) func =
   Hashtbl.iter
@@ -98,7 +94,7 @@ let find_or_create_session manager uri (create : manager -> session -> unit) =
   in
   match sess with
   | Some s -> s
-  | None -> begin
+  | None ->
       let f = Queue.create () in
       Queue.push (DocumentUri.to_path uri) f;
       let sess = Server_utils.get_session_dir ~allow_mkdir:true f in
@@ -109,7 +105,6 @@ let find_or_create_session manager uri (create : manager -> session -> unit) =
       Hashtbl.add manager.sessions sess session;
       create manager session;
       session
-    end
 
 (* let rec fold_sessions _ = failwith "todo" *)
 

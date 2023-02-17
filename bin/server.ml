@@ -68,6 +68,14 @@ let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
 open Notifications
 open Why3_manager
 
+let send_unsolved_tasks (m : manager) (notify_back : Jsonrpc2.notify_back) : unit Lwt.t =
+  let diags = Hashtbl.create 32 in
+  Hashtbl.iter
+    (fun k v -> Hashtbl.add diags k (List.map (fun (l, info) -> error l info.name) v))
+    (unsolved_tasks m);
+
+  send_all_diags notify_back diags
+
 let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.notify_back)
     (notif : notification) =
   let* _ = log_info notify_back (Format.asprintf "notification: %a" print_notify notif) in
@@ -97,14 +105,7 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
       add_node s par_id id { name = nm; proved };
       (* Ask for the task of every 'goal' node so that we can get the
          spans of the unsolved goals *)
-      (* spawn (fun () ->
-          log_info notify_back (Format.asprintf "now have %d tasks" (task_count s)));
-      *)
-      let diags = Hashtbl.create 32 in
-      Hashtbl.iter
-        (fun k v -> Hashtbl.add diags k (List.map (fun (l, info) -> error l info.name) v))
-        (unsolved_tasks m);
-      let* _ = send_all_diags notify_back diags in
+      let* _ = send_unsolved_tasks m notify_back in
       let* _ =
         notify_back#send_notification
           (UnknownNotification
@@ -120,11 +121,7 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
       let task_info = { task; locations = locs; goal; lang } in
 
       edit_node s id (fun (node, _) -> (node, Some task_info));
-      let diags = Hashtbl.create 32 in
-      Hashtbl.iter
-        (fun k v -> Hashtbl.add diags k (List.map (fun (l, info) -> error l info.name) v))
-        (unsolved_tasks m);
-      send_all_diags notify_back diags
+      send_unsolved_tasks m notify_back
   | Node_change (id, upd) ->
       let* _ =
         notify_back#send_notification
@@ -141,16 +138,8 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
               let info = { info with name = nm' } in
               (info, task)
           | _ -> (info, task));
-      (* Do some sort of coalescing to avoid spamming diagnostics *)
-      let diags = Hashtbl.create 32 in
-      Hashtbl.iter
-        (fun k v -> Hashtbl.add diags k (List.map (fun (l, info) -> error l info.name) v))
-        (unsolved_tasks m);
 
-      let tasks = get_tasks s in
-      spawn (fun () ->
-          log_info notify_back (Format.asprintf "sending %d tasks" (List.length tasks)));
-      send_all_diags notify_back diags
+      send_unsolved_tasks m notify_back
   | Remove id ->
       remove_node s id;
       let* _ =
@@ -158,11 +147,7 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
           (UnknownNotification (DeleteNodeNotification.to_jsonrpc { id }))
       in
 
-      let diags = Hashtbl.create 32 in
-      Hashtbl.iter
-        (fun k v -> Hashtbl.add diags k (List.map (fun (l, info) -> error l info.name) v))
-        (unsolved_tasks m);
-      send_all_diags notify_back diags
+      send_unsolved_tasks m notify_back
   | Reset_whole_tree ->
       reset_tree s;
       let* _ =
@@ -263,14 +248,9 @@ class why_lsp_server =
             mk_server notify_back config env man sess)
       in
       send_req sess Reload_req;
-      spawn (fun () ->
-          let* _ = Lwt_unix.sleep 0.5 in
+      spawn (fun () -> let* _ = Lwt_unix.sleep 0.5 in
 
-          let diags = Hashtbl.create 32 in
-          Hashtbl.iter
-            (fun k v -> Hashtbl.add diags k (List.map (fun (l, info) -> error l info.name) v))
-            (unsolved_tasks manager);
-          send_all_diags notify_back diags);
+                       send_unsolved_tasks manager notify_back);
       return ()
 
     method on_notif_doc_did_open ~notify_back d ~content = self#_on_doc ~notify_back d.uri content
@@ -345,8 +325,7 @@ class why_lsp_server =
               match Result.join params with
               | Ok p ->
                   let sess =
-                    find_or_create_session manager p.uri (fun man sess ->
-                        mk_server notify_back config env man sess)
+                    find_or_create_session manager p.uri (mk_server notify_back config env)
                   in
 
                   send_req sess Reload_req;
@@ -358,8 +337,7 @@ class why_lsp_server =
               match Result.join params with
               | Ok p ->
                   let sess =
-                    find_or_create_session manager p.uri (fun man sess ->
-                        mk_server notify_back config env man sess)
+                    find_or_create_session manager p.uri (mk_server notify_back config env)
                   in
 
                   send_req sess Reset_proofs_req;

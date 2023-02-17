@@ -64,12 +64,11 @@ module UpdateNodeNotification = struct
 
   let of_notif (n : Itp_communication.notification) : t =
     match n with
-    | Node_change (id, info) -> begin
+    | Node_change (id, info) -> (
         match info with
         | Proved b -> { id; info = Proved b }
         | Name_change s -> { id; info = NameChange s }
-        | Proof_status_change _ -> { id; info = StatusChange () }
-      end
+        | Proof_status_change _ -> { id; info = StatusChange () })
     | _ -> failwith "of_notif: wrong notification"
 
   let to_jsonrpc n : Jsonrpc.Message.notification =

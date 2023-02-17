@@ -1,8 +1,7 @@
 (executable
  (public_name whycode)
  (name main)
- (libraries whycode
-            why3
-            lsp linol linol-lwt uri yojson ppx_deriving_yojson.runtime)
-  (preprocess (pps ppx_deriving_yojson))
-)
+ (libraries whycode why3 lsp linol linol-lwt uri yojson
+   ppx_deriving_yojson.runtime)
+ (preprocess
+  (pps ppx_deriving_yojson)))
