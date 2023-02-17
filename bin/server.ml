@@ -340,6 +340,19 @@ class why_lsp_server =
               | Ok p -> self#on_run_command_notif ~notify_back p
               | Error e -> failwith e
             end
+          | "proof/reloadSession" -> begin
+              let params = Json.message_params m ReloadSessionNotification.of_yojson in
+              match Result.join params with
+              | Ok p ->
+                  let sess =
+                    find_or_create_session manager p.uri (fun man sess ->
+                        mk_server notify_back config env man sess)
+                  in
+
+                  send_req sess Reload_req;
+                  return ()
+              | Error e -> failwith e
+            end
           | "proof/resetSession" -> begin
               let params = Json.message_params m ResetSessionNotification.of_yojson in
               match Result.join params with

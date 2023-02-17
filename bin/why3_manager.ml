@@ -64,12 +64,10 @@ open Linol_lwt
 
 let loc_contains loc doc (needle : Range.t) =
   let f, l1, c1, l2, c2 = Loc.get loc in
-  f = DocumentUri.to_path doc &&
-  l1 <= needle.start.line + 1 &&
-
-  needle.end_.line + 1<= l2 &&
-  c1 <= needle.start.character &&
-  needle.end_.character <= c2
+  f = DocumentUri.to_path doc
+  && l1 <= needle.start.line + 1
+  && needle.end_.line + 1 <= l2
+  && c1 <= needle.start.character && needle.end_.character <= c2
 
 type control_flow = Stop | Continue
 

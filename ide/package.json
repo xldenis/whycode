@@ -27,6 +27,10 @@
 				"title": "Reset Proof Session"
 			},
 			{
+				"command": "extension.reloadSession",
+				"title": "Reload Proof Session"
+			},
+			{
 				"command": "taskTree.runAuto0",
 				"title": "Run Auto 0"
 			},

@@ -22,6 +22,14 @@ module ResetSessionNotification = struct
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]
 end
 
+module ReloadSessionNotification = struct
+  let uri_of_yojson j =
+    try Ok (Lsp.Types.DocumentUri.t_of_yojson j) with _ -> Error "could not parse uri"
+
+  type t = { uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson] dummy : bool }
+  [@@deriving of_yojson] [@@yojson.allow_extra_fields]
+end
+
 (* Temporary, we should instead probably have a 'TreeChangeNotification' which bundles updates *)
 module NewNodeNotification = struct
   let uri_to_yojson j = Lsp.Types.DocumentUri.yojson_of_t j

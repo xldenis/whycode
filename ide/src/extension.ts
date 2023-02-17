@@ -41,8 +41,8 @@ export function activate(context: ExtensionContext) {
 	});
 
 	let serverSetting: string | undefined = vscode.workspace.getConfiguration('whycode').get('executablePath');
-	if (serverSetting == undefined) {
-		throw "Could not find server executable"
+	if (serverSetting == undefined || serverSetting == "") {
+		serverSetting = "whycode";
 	}
 	const serverModule: string = serverSetting!;
 	const serverArgs: string[] = vscode.workspace.getConfiguration('whycode').get('extraArgs')!;
@@ -113,8 +113,15 @@ export function activate(context: ExtensionContext) {
 
 		vscode.window.showInformationMessage('Session Reset');
 	});
-
 	context.subscriptions.push(prove);
+
+	const reload = vscode.commands.registerCommand('extension.reloadSession', () => {
+		let uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
+		client.sendNotification('proof/reloadSession', { uri: uri, dummy: true });
+
+		vscode.window.showInformationMessage('Session Reset');
+	});
+	context.subscriptions.push(reload);
 
 	const trans = vscode.commands.registerCommand('why3.runTransformation', (uri: DocumentUri, node: number, command: string) => {
 		client.sendNotification('proof/runTransformation', { uri: uri, node: node, command: command });
