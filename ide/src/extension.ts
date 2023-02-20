@@ -32,7 +32,12 @@ namespace ResolveSession {
     export const method: 'proof/resolveSession' = 'proof/resolveSession';
     export const type: RequestType<ResolveSessionParams, ResolveSessionResponse | null, {}> = new RequestType(method, undefined);
 }
+
 	
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+ 
 
 export function activate(context: ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('extension.Why', () => {
@@ -101,6 +106,11 @@ export function activate(context: ExtensionContext) {
 
 	var proofDocs: Set<vscode.Uri> = new Set();
 
+	let focusOnTree = function(id : string) {
+		treeDataProvider.tree = trees.get(id)!;
+		treeDataProvider.refresh();
+	};
+
 	workspace.onDidChangeTextDocument((event) => {
 		if (event.contentChanges.length === 0) {
 			return;
@@ -122,18 +132,26 @@ export function activate(context: ExtensionContext) {
 		client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
 	});
 
+
+
 	vscode.window.onDidChangeActiveTextEditor(async (e) => {
 		if (e != undefined) {
-			console.log("switching tree 1");
 			let id = await client.sendRequest(ResolveSession.type, {uri: e.document.uri.toString() } );
-			console.log("switching tree 2 ", id?.uri, trees);
 			if (id != undefined && trees.get(id.uri) != undefined) {
-				console.log("switching tree");
-				treeDataProvider.tree = trees.get(id.uri)!;
-				treeDataProvider.refresh();
+				focusOnTree(id.uri);
 			}
 		}
 	});
+
+	setTimeout(async function () {
+		let uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
+
+		let id = await client.sendRequest(ResolveSession.type, {uri: uri } );
+			if (id != undefined && trees.get(id.uri) != undefined) {
+				focusOnTree(id.uri);
+			}
+	}, 250);
+
 
 	// Seems unnecessary?
 	const prove = vscode.commands.registerCommand('extension.ResetSession', () => {

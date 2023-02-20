@@ -247,6 +247,7 @@ class why_lsp_server =
                      (DocumentUri.to_path (session_path sess))));
             mk_server notify_back config env man sess)
       in
+      send_req sess (Add_file_req (DocumentUri.to_path uri));
       send_req sess Reload_req;
       spawn (fun () -> let* _ = Lwt_unix.sleep 0.5 in
 
