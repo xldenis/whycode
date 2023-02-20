@@ -86,6 +86,15 @@ let for_tasks_at manager doc (loc : Range.t) func =
     (fun _ sess -> for_task_at (Task_tree.to_seq !(sess.tree)) doc loc func)
     manager.sessions
 
+let find_session manager uri =
+  let sess =
+    Option.bind
+      (Hashtbl.find_opt manager.file_to_session_root uri)
+      (Hashtbl.find_opt manager.sessions)
+  in
+
+  sess
+
 let find_or_create_session manager uri (create : manager -> session -> unit) =
   let sess =
     Option.bind

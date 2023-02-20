@@ -9,6 +9,9 @@ import {
 	DocumentUri,
 	LanguageClient,
 	LanguageClientOptions,
+	ProtocolNotificationType,
+	ProtocolRequestType,
+	RequestType,
 	ServerOptions,
 	TransportKind,
 	URI
@@ -19,6 +22,18 @@ import { GoalNode, TaskDataProvider, TaskNode, TaskTree } from './tree';
 
 let client: LanguageClient;
 
+interface ResolveSessionParams {
+	uri: DocumentUri
+}
+
+type ResolveSessionResponse = ResolveSessionParams;
+
+namespace ResolveSession {
+    export const method: 'proof/resolveSession' = 'proof/resolveSession';
+    export const type: RequestType<ResolveSessionParams, ResolveSessionResponse | null, {}> = new RequestType(method, undefined);
+}
+	
+
 export function activate(context: ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('extension.Why', () => {
 		vscode.window.showInformationMessage('Activated');
@@ -26,8 +41,9 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	const tasks = new TaskTree();
-	const treeDataProvider = new TaskDataProvider(tasks);
+	let trees : Map<string, TaskTree> = new Map();
+
+	const treeDataProvider = new TaskDataProvider(new TaskTree());
 
 	const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView('taskTree', { treeDataProvider });
 	context.subscriptions.push(view);
@@ -106,11 +122,23 @@ export function activate(context: ExtensionContext) {
 		client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
 	});
 
+	vscode.window.onDidChangeActiveTextEditor(async (e) => {
+		if (e != undefined) {
+			console.log("switching tree 1");
+			let id = await client.sendRequest(ResolveSession.type, {uri: e.document.uri.toString() } );
+			console.log("switching tree 2 ", id?.uri, trees);
+			if (id != undefined && trees.get(id.uri) != undefined) {
+				console.log("switching tree");
+				treeDataProvider.tree = trees.get(id.uri)!;
+				treeDataProvider.refresh();
+			}
+		}
+	});
+
 	// Seems unnecessary?
 	const prove = vscode.commands.registerCommand('extension.ResetSession', () => {
 		let uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
 		client.sendNotification('proof/resetSession', { uri: uri, dummy: true });
-
 		vscode.window.showInformationMessage('Session Reset');
 	});
 	context.subscriptions.push(prove);
@@ -130,7 +158,7 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(trans);
 
 	client.onNotification('proof/changeTreeNode', params => {
-		let node = tasks.getChild(params.id);
+		let node = trees.get(params.uri)!.getChild(params.id);
 		console.log("update node ", params);
 		if (params.info[0] == 'Proved' && node != undefined) {
 			node.proved = params.info[1];
@@ -140,15 +168,22 @@ export function activate(context: ExtensionContext) {
 
 	client.onNotification('proof/removeTreeNode', params => {
 		console.log("remove node", params);
-		tasks.remove(params.id);
+		if (!trees.has(params.uri)) {
+			trees.set(params.uri, new TaskTree());
+		};
+		
+		trees.get(params.uri)!.remove(params.id);
 		treeDataProvider.refresh();
 
 	});
 
 	client.onNotification('proof/addTreeNode', params => {
-
 		let node = new GoalNode(params.uri, params.id, params.parent_id, params.name, false, []);
-		tasks.insertChild(params.parent_id, node);
+		if (!trees.has(params.uri)) {
+			trees.set(params.uri, new TaskTree());
+		};
+
+		trees.get(params.uri)!.insertChild(params.parent_id, node);
 		console.log("create node ", params);
 		view.reveal(node);
 

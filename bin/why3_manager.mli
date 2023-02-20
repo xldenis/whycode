@@ -5,6 +5,9 @@ open Task_tree
 type manager
 type session
 
+val session_path : session -> Lsp.Uri.t
+val find_session : manager -> Lsp.Uri.t -> session option
+
 val find_or_create_session :
   manager -> Lsp.Types.DocumentUri.t -> (manager -> session -> unit) -> session
 

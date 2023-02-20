@@ -114,7 +114,7 @@ export class TaskTree {
 
 export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
   constructor(
-    private tree: TaskTree,
+    public tree: TaskTree,
   ) { }
 
 

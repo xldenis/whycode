@@ -25,6 +25,8 @@ let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
 (* Publish a batch of diagnostics for a set of files *)
 let send_all_diags (notify_back : Jsonrpc2.notify_back)
     (diags : (string, Diagnostic.t list) Hashtbl.t) =
+  spawn (fun () -> log_info notify_back (Format.asprintf "sending tasks"));
+
   Hashtbl.fold
     (fun file diags lwt ->
       notify_back#set_uri (DocumentUri.of_path file);
@@ -82,21 +84,19 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
   let tasks = get_tasks s in
   spawn (fun () -> log_info notify_back (Format.asprintf "sending %d tasks" (List.length tasks)));
   match notif with
-  | Message m ->
+  | Message m -> (
       let* _ =
         notify_back#send_log_msg ~type_:(message_notif_level m) (Format.asprintf "%a" print_msg m)
       in
 
-      begin
-        match m with
-        | Parse_Or_Type_Error (s, e, msg) ->
-            notify_back#send_diagnostic
-              [
-                Lsp.Types.Diagnostic.create () ~range:(locs_to_range s e) ~severity:Error
-                  ~source:"Why3" ~message:msg;
-              ]
-        | _ -> return ()
-      end
+      match m with
+      | Parse_Or_Type_Error (s, e, msg) ->
+          notify_back#send_diagnostic
+            [
+              Lsp.Types.Diagnostic.create () ~range:(locs_to_range s e) ~severity:Error
+                ~source:"Why3" ~message:msg;
+            ]
+      | _ -> return ())
   | Initialized _ -> return ()
   | Saved -> return ()
   (* | Dead _ -> IO_lwt.failwith "Server Died" *)
@@ -119,14 +119,14 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
       | _ -> return ())
   | Task (id, task, locs, goal, lang) ->
       let task_info = { task; locations = locs; goal; lang } in
-
       edit_node s id (fun (node, _) -> (node, Some task_info));
       send_unsolved_tasks m notify_back
   | Node_change (id, upd) ->
       let* _ =
         notify_back#send_notification
           (UnknownNotification
-             (UpdateNodeNotification.to_jsonrpc (UpdateNodeNotification.of_notif notif)))
+             (UpdateNodeNotification.to_jsonrpc
+                (UpdateNodeNotification.of_notif (session_path s) notif)))
       in
 
       edit_node s id (fun (info, task) ->
@@ -144,7 +144,7 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
       remove_node s id;
       let* _ =
         notify_back#send_notification
-          (UnknownNotification (DeleteNodeNotification.to_jsonrpc { id }))
+          (UnknownNotification (DeleteNodeNotification.to_jsonrpc { id; uri = session_path s }))
       in
 
       send_unsolved_tasks m notify_back
@@ -152,7 +152,7 @@ let handle_notification (m : manager) (s : session) (notify_back : Jsonrpc2.noti
       reset_tree s;
       let* _ =
         notify_back#send_notification
-          (UnknownNotification (DeleteNodeNotification.to_jsonrpc { id = 0 }))
+          (UnknownNotification (DeleteNodeNotification.to_jsonrpc { id = 0; uri = session_path s }))
       in
 
       return ()
@@ -307,6 +307,26 @@ class why_lsp_server =
       in
       send_req sess (Command_req (n.node, n.command));
       return ()
+
+    method! on_unknown_request ~notify_back ~id (meth : string) (msg : _) =
+      begin
+        match meth with
+        | "proof/resolveSession" ->
+            let msg = Option.get msg in
+            begin
+              match ResolveSessionRequest.of_yojson (Jsonrpc.Message.Structured.to_json msg) with
+              | Ok p ->
+                  let sess = Option.map session_path (find_session manager p.uri) in
+
+                  begin
+                    match sess with
+                    | Some a -> return (`Assoc [ ("uri", DocumentUri.yojson_of_t a) ])
+                    | None -> return (`Assoc [ ("uri", `Null) ])
+                  end
+              | Error e -> failwith e
+            end
+        | _ -> failwith "unhandled request"
+      end
 
     method! on_notification_unhandled ~notify_back notif =
       let open Lsp.Import in
