@@ -163,9 +163,10 @@ export function activate(context: ExtensionContext) {
 
 	const reload = vscode.commands.registerCommand('extension.reloadSession', () => {
 		let uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
+		console.log(uri);
 		client.sendNotification('proof/reloadSession', { uri: uri, dummy: true });
 
-		vscode.window.showInformationMessage('Session Reset');
+		vscode.window.showInformationMessage('Session Reloaded');
 	});
 	context.subscriptions.push(reload);
 

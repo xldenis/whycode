@@ -281,7 +281,7 @@ class why_lsp_server =
       let task = ref None in
 
       for_tasks_at manager c.textDocument.uri c.range (fun (id, node, _) ->
-          spawn (fun () -> log_info notify_back (Format.asprintf "checking %d %s" id node.name));
+          spawn (fun () -> log_info notify_back (Format.asprintf "checking22 %d %s" id node.name));
           if not node.proved then (
             task := Some id;
             Stop)
@@ -329,45 +329,42 @@ class why_lsp_server =
         | _ -> failwith "unhandled request"
       end
 
-    method! on_notification_unhandled ~notify_back notif =
+    method! on_unknown_notification ~notify_back m =
+      let* _ = log_info notify_back (Format.asprintf "notification: %s" m.method_) in
       let open Lsp.Import in
-      match notif with
-      | Lsp.Client_notification.UnknownNotification m -> begin
-          match m.method_ with
-          | "proof/runTransformation" -> begin
-              let params = Json.message_params m RunTransformationNotification.of_yojson in
+      match m.method_ with
+      | "proof/runTransformation" -> begin
+          let params = Json.message_params m RunTransformationNotification.of_yojson in
 
-              match Result.join params with
-              | Ok p -> self#on_run_command_notif ~notify_back p
-              | Error e -> failwith e
-            end
-          | "proof/reloadSession" -> begin
-              let params = Json.message_params m ReloadSessionNotification.of_yojson in
-              match Result.join params with
-              | Ok p ->
-                  let sess =
-                    find_or_create_session manager p.uri (mk_server notify_back config env)
-                  in
-
-                  send_req sess Reload_req;
-                  return ()
-              | Error e -> failwith e
-            end
-          | "proof/resetSession" -> begin
-              let params = Json.message_params m ResetSessionNotification.of_yojson in
-              match Result.join params with
-              | Ok p ->
-                  let sess =
-                    find_or_create_session manager p.uri (mk_server notify_back config env)
-                  in
-
-                  send_req sess Reset_proofs_req;
-                  send_req sess Reload_req;
-                  return ()
-              | Error e -> failwith e
-            end
-          | _ -> return ()
+          match Result.join params with
+          | Ok p -> self#on_run_command_notif ~notify_back p
+          | Error e -> failwith e
         end
-      | Lsp.Client_notification.DidSaveTextDocument n -> self#on_did_save_notif ~notify_back n
-      | _ -> return ()
+      | "proof/reloadSession" -> begin
+          let params = Json.message_params m ReloadSessionNotification.of_yojson in
+          match Result.join params with
+          | Ok p ->
+              let sess = find_or_create_session manager p.uri (mk_server notify_back config env) in
+
+              send_req sess Reload_req;
+              return ()
+          | Error e -> failwith e
+        end
+      | "proof/resetSession" -> begin
+          let params = Json.message_params m ResetSessionNotification.of_yojson in
+          match Result.join params with
+          | Ok p ->
+              let sess = find_or_create_session manager p.uri (mk_server notify_back config env) in
+              let* _ =
+                log_info notify_back
+                  (Format.asprintf "resetting session %s"
+                     (DocumentUri.to_string (session_path sess)))
+              in
+
+              send_req sess Reset_proofs_req;
+              send_req sess Reload_req;
+              return ()
+          | Error e -> failwith e
+        end
+      | _ -> failwith (Format.sprintf "unknown notification %s" m.method_)
   end
