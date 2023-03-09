@@ -12,7 +12,7 @@ class Unproved implements ProofStatus {
 
 // Provide access to document URI
 export abstract class TaskNode {
-  public proved = false 
+  public proved = null
   constructor(
     readonly uri: vscode.Uri,
     readonly id: NodeId,
@@ -77,10 +77,10 @@ export class TaskTree {
         // should probably just error here on the long term.
         parentNode!.children[child_ix] = child; // handle children of the old child 
       }
-      } else {
+    } else {
       let old_ix = this.roots.findIndex(n => n.id == child.id);
       if (old_ix == -1) {
-        this.roots.push(child); 
+        this.roots.push(child);
       } else {
         this.roots[old_ix] = child;
       }
@@ -128,9 +128,15 @@ export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
   }
 
   public getTreeItem(element: TaskNode): vscode.TreeItem {
-    let icon = element.proved ?
-      new vscode.ThemeIcon('notebook-state-success', new vscode.ThemeColor('notebookStatusSuccessIcon.foreground')) :
-      new vscode.ThemeIcon('question', new vscode.ThemeColor('list.warningForeground'))
+    var icon = new vscode.ThemeIcon('question', new vscode.ThemeColor('notebookStatusRunningIcon.foreground'));
+
+    if (element.proved == true) {
+     icon = new vscode.ThemeIcon('notebook-state-success', new vscode.ThemeColor('notebookStatusSuccessIcon.foreground'))
+    } else if (element.proved == false) {
+      icon = new vscode.ThemeIcon('notebook-state-error', new vscode.ThemeColor('notebookStatusErrorIcon.foreground'))
+    };
+
+
 
     let state: vscode.TreeItemCollapsibleState;
 
@@ -228,7 +234,7 @@ type UpdateInfo =
 type MessageNotif =
   | ["Information", string]
   | ["Error", string]
-  | ["Query_Error",number, string]
+  | ["Query_Error", number, string]
   | ["File_Saved", string]
   | ["Task_Monitor", number, number, number]
   ;

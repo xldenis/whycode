@@ -73,7 +73,11 @@ module UpdateNodeNotification = struct
         | Proof_status_change (pa, _, _) -> begin
             (* TODO Improve *)
             match pa with
-            | Done _ -> { id; info = Proved true; uri }
+            | Done s -> begin
+                match s.pr_answer with
+                | Why3.Call_provers.Valid -> { id; info = Proved true; uri }
+                | _ -> { id; info = Proved false; uri }
+              end
             | _ -> { id; info = StatusChange (); uri }
           end)
     | _ -> failwith "of_notif: wrong notification"
