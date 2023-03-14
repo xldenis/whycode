@@ -2,7 +2,7 @@
 	"name": "whycode",
 	"displayName": "whycode",
 	"description": "Why3 LSP client",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"publisher": "xldenis",
 	"repository": "https://github.com/xldenis/whycode",
 	"engines": {
@@ -15,7 +15,7 @@
 		"onCommand:extension.Why",
 		"onCommand:extension.Prove"
 	],
-	"main": "./out/extension.js",
+	"main": "./out/main.js",
 	"contributes": {
 		"commands": [
 			{
@@ -122,7 +122,11 @@
 		}
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
+		"vscode:prepublish": "npm run esbuild-base -- --minify",
+		"esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+		"esbuild": "npm run esbuild-base -- --sourcemap",
+		"esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+		"test-compile": "tsc -p ./",
 		"compile": "tsc -p ./",
 		"lint": "eslint . --ext .ts,.tsx",
 		"watch": "tsc -watch -p ./"
@@ -135,6 +139,7 @@
 		"@types/vscode": "^1.65.0",
 		"@typescript-eslint/eslint-plugin": "^4.16.0",
 		"@typescript-eslint/parser": "^4.16.0",
+		"esbuild": "^0.17.11",
 		"eslint": "^7.21.0",
 		"typescript": "^4.2.2"
 	}
