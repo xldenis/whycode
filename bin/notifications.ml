@@ -5,7 +5,7 @@ let uri_of_yojson j =
 
 let uri_to_yojson j = Lsp.Types.DocumentUri.yojson_of_t j
 
-module RunTransformationNotification = struct
+module RunTransformationRequest = struct
   type t = {
     command : string;
     node : int;

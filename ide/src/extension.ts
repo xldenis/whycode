@@ -156,7 +156,7 @@ export function activate(context: ExtensionContext) {
 	// Seems unnecessary?
 	const prove = vscode.commands.registerCommand('extension.ResetSession', () => {
 		let uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
-		client.sendNotification('proof/resetSession', { uri: uri, dummy: true });
+		client.sendRequest('proof/resetSession', { uri: uri, dummy: true });
 		vscode.window.showInformationMessage('Session Reset');
 	});
 	context.subscriptions.push(prove);
@@ -171,7 +171,7 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(reload);
 
 	const trans = vscode.commands.registerCommand('why3.runTransformation', (uri: DocumentUri, node: number, command: string) => {
-		client.sendNotification('proof/runTransformation', { uri: uri, node: node, command: command });
+		client.sendRequest('proof/runTransformation', { uri: uri, node: node, command: command });
 	});
 
 	context.subscriptions.push(trans);
