@@ -2,7 +2,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  xxx:
+  extension:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
