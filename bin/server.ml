@@ -151,6 +151,12 @@ module SessionManager = struct
       cont
 end
 
+let relativize session_dir f =
+  let f = if Filename.is_relative f then Filename.concat session_dir f else f in
+  let path = Sysutil.relativize_filename session_dir f in
+  let g = Sysutil.system_dependent_absolute_path session_dir path in
+  g
+
 let get_goal_loc (task : Task.task) : Loc.position =
   let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
   let location =
@@ -179,6 +185,7 @@ let gather_diagnostics_list (c : controller) : (string, Diagnostic.t list) Hasht
       let task = get_task session id in
       let location = get_goal_loc task in
       let file, _, _, _, _ = Loc.get location in
+      let file = relativize (get_dir session) file in
       let diag = error location (get_proof_expl session id) in
       let old = Option.value ~default:[] (Hashtbl.find_opt tbl file) in
       Hashtbl.replace tbl file (diag :: old))
