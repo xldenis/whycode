@@ -13,7 +13,7 @@
 				"$tsc"
 			],
 			"label": "npm: compile",
-			"detail": "tsc -p ./"
+			"detail": "tsc -p ./ide"
 		},
 		{
 			"type": "npm",
@@ -31,7 +31,7 @@
 				"$tsc-watch"
 			],
 			"label": "npm: watch",
-			"detail": "tsc -watch -p ./"
+			"detail": "tsc -watch -p ./ide"
 		}
 	]
 }

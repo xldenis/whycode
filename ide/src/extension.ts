@@ -44,6 +44,7 @@ export function activate(context: ExtensionContext) {
 		vscode.window.showInformationMessage('Activated');
 	});
 
+
 	context.subscriptions.push(disposable);
 
 	let trees : Map<string, TaskTree> = new Map();

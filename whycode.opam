@@ -9,6 +9,7 @@ depends: [
   "uri"
   "bheap"
   "ppx_deriving_yojson"
+  "ocamlgraph"
 ]
 build: [
   ["dune" "subst"] {dev}
