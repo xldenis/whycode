@@ -1,0 +1,29 @@
+on:
+  push:
+
+jobs:
+  ide:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: ${{ env.FETCH_DEPTH }}
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3.6.0
+      - run: npm ci
+        working-directory: ide
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: ${{ env.FETCH_DEPTH }}
+      - name: Use OCaml
+        with:
+          ocaml-compiler: 4.14.x
+          dune-cache: true
+        uses: ocaml/setup-ocaml@v2
+      - run: opam install . --deps-only
+      - run: opam exec -- dune build
