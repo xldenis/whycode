@@ -90,7 +90,7 @@ build: [
   ]
 ]
 pin-depends: [
-  ["linol.0.4" "git+ssh://git@github.com/c-cube/linol.git"]
-  ["linol-lwt.0.4" "git+ssh://git@github.com/c-cube/linol.git"]
+  ["linol.0.4" "git+https://github.com/xldenis/linol.git"]
+  ["linol-lwt.0.4" "git+https://github.com/xldenis/linol.git"]
   ["why3.1.5.1" "git+ssh://git@gitlab.inria.fr/why3/why3.git"]
 ]
