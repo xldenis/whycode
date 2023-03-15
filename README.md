@@ -6,7 +6,7 @@ This repository contains an experiment in using VsCode as a front-end for the [W
 
 ## Building the Server
 
-- Create a local switch and install the package: `opam switch create --locked .`
+- Create a local switch and install the package: `opam switch create . --locked`
 - This will build and install `whycode` into a local opam switch. 
 
 ## Building the extension

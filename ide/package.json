@@ -2,7 +2,7 @@
 	"name": "whycode",
 	"displayName": "whycode",
 	"description": "Why3 LSP client",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"publisher": "xldenis",
 	"repository": "https://github.com/xldenis/whycode",
 	"engines": {
