@@ -2,7 +2,7 @@
 	"name": "whycode",
 	"displayName": "whycode",
 	"description": "Why3 LSP client",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"publisher": "xldenis",
 	"repository": "https://github.com/xldenis/whycode",
 	"engines": {
@@ -119,7 +119,22 @@
 					"when": "view == taskTree"
 				}
 			]
-		}
+		},
+		"languages": [
+			{
+				"id": "MLCFG",
+				"extensions": [
+					".mlcfg"
+				]
+			}
+		],
+		"grammars": [
+			{
+				"language": "MLCFG",
+				"scopeName": "source.mlcfg",
+				"path": "./Why3.tmLanguage.json"
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run esbuild-base -- --minify",

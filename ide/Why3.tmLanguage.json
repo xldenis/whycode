@@ -1,0 +1,242 @@
+{
+  "fileTypes": [
+    "mlw",
+    "mlcfg",
+    "stdout"
+  ],
+  "name": "Why3",
+  "patterns": [
+    {
+      "begin": "(module)\\s+(?:(\\p{Lu}[\\p{L}_\\p{Nd}]+))",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.why"
+        },
+        "2": {
+          "name": "entity.name.namespace"
+        }
+      },
+      "end": "(end)",
+      "endCaptures": {
+        "1": {
+          "name": "keyword.why"
+        }
+      },
+      "name": "meta.namespace.why",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    {
+      "captures": {
+        "1": {
+          "name": "keyword.control.import.why"
+        },
+        "2": {
+          "name": "meta.path.why"
+        }
+      },
+      "match": "(use)\\s+((?:([\\p{Ll}_][\\p{Alpha}\\p{Nd}_]*)\\.)*(?:(\\p{Lu}[\\p{Alpha}\\p{Nd}_]*)))"
+    },
+    {
+      "begin": "(clone)\\s+((?:([\\p{Ll}_][\\p{Alpha}\\p{Nd}_]*)\\.)*(?:(\\p{Lu}[\\p{Alpha}\\p{Nd}_]*)))\\s+(as\\s+(?:(\\p{Lu}[\\p{Alpha}\\p{Nd}_]*)))",
+      "captures": {
+        "1": {
+          "name": "keyword.control.import.why"
+        },
+        "2": {
+          "name": "meta.path.why"
+        }
+      },
+      "end": "(?=\\b(let|end|namespace|clone|use|axiom|goal|lemma)\\b)|(?=^\\s*$)",
+      "name": "meta.group.clone"
+    },
+    {
+      "begin": "\\b(type|with)\\s+([^=]*)(=)?",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.why"
+        },
+        "2": {
+          "name": "storage.type.why"
+        },
+        "3": {
+          "name": "punctuation.separator"
+        }
+      },
+      "end": "(?=\\b(type|with|let|end|val|predicate|function|namespace|clone|use|axiom|goal|lemma)\\b)|(?=^\\s*$)",
+      "patterns": [
+        {
+          "include": "#typedefs"
+        }
+      ]
+    },
+    {
+      "begin": "\\b(function|predicate)\\s+([a-z][\\p{Alpha}_\\p{Nd}]*)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.declaration.function"
+        },
+        "2": {
+          "name": "entity.name.function.why"
+        }
+      },
+      "end": "(?=\\b(type|with|let|end|val|predicate|function|namespace|use|clone|axiom|goal|lemma)\\b)|(?=^\\s*$)"
+    },
+    {
+      "begin": "\\b(let)\\s+(rec\\s+)?(cfg\\s+)?([a-z][\\p{Alpha}_\\p{Nd}]*)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.declaration.function"
+        },
+        "2": {
+          "name": "keyword.other.why"
+        },
+        "3": {
+          "name": "keyword.other.why"
+        },
+        "4": {
+          "name": "entity.name.function.why"
+        }
+      },
+      "end": "(?=\\b(type|val|predicate|function|namespace|clone|use|axiom|goal|lemma)\\b)|(?=^\\s*$)",
+      "name": "meta.function.why",
+      "patterns": [
+        {
+          "include": "#program_exp"
+        }
+      ]
+    },
+    {
+      "begin": "\\b(axiom|goal|lemma)\\s+([a-z][\\p{Alpha}_\\p{Nd}]*)\\s+:",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.declaration.other.why"
+        },
+        "2": {
+          "name": "entity.name.function.why"
+        }
+      },
+      "end": "(?=\\b(type|with|let|end|val|predicate|function|namespace|clone|use|axiom|goal|lemma)\\b)|(?=^\\s*$)",
+      "patterns": [
+        {
+          "include": "#term"
+        }
+      ]
+    },
+    {
+      "include": "#keywords"
+    }
+  ],
+  "repository": {
+    "branch": {
+      "patterns": [
+        {
+          "begin": "(\\|)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.separator"
+            }
+          },
+          "end": "(->)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.separator"
+            }
+          },
+          "name": "meta.branch.why",
+          "patterns": [
+            {
+              "include": "#pattern"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "variant|ensures|requires",
+          "name": "variable.annotation"
+        },
+        {
+          "match": "if|else|then",
+          "name": "keyword.control"
+        }
+      ]
+    },
+    "pattern": {
+      "patterns": [
+        {
+          "match": "\\p{Lu}[\\p{Alpha}\\p{Nd}_]*",
+          "name": "support.type.why"
+        }
+      ]
+    },
+    "program_exp": {
+      "patterns": [
+        {
+          "begin": "assume\\s+ {",
+          "end": "}"
+        }
+      ]
+    },
+    "term": {
+      "patterns": [
+        {
+          "begin": "(match)\\s+(.*)(with)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.why"
+            },
+            "3": {
+              "name": "keyword.why"
+            }
+          },
+          "end": "(end)",
+          "endCaptures": {
+            "1": {
+              "name": "keyword.match.why"
+            }
+          },
+          "name": "meta.match.why",
+          "patterns": [
+            {
+              "include": "#branch"
+            }
+          ]
+        }
+      ]
+    },
+    "typedefs": {
+      "patterns": [
+        {
+          "match": "\\|",
+          "name": "punctuation.separator"
+        },
+        {
+          "match": "\\p{Lu}[\\p{Alpha}\\p{Nd}_]*",
+          "name": "entity.name.enum"
+        },
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "name": "meta.parens",
+          "patterns": [
+            {
+              "include": "#typedefs"
+            }
+          ]
+        },
+        {
+          "match": "(?:')?[\\p{Ll}\\p{Nd}_]*",
+          "name": "meta.type"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.mlcfg",
+  "uuid": "d93903e8-7cc6-4ee7-b720-31fee12fe861"
+}
