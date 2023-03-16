@@ -22,7 +22,7 @@ Usage will also require at least one backend to Why3 sucg as Z3, CVC5 or Alt-Erg
 ## Upcoming
 
 1. View the Why3 task tree
-2. Run individual *transformations*
+2. Run individual _transformations_
 3. View proof tasks
 4. Display counter-examples inline
 5. Configure Why3 backends from VSCode

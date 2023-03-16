@@ -1,161 +1,145 @@
 {
-	"name": "whycode",
-	"displayName": "whycode",
-	"description": "Why3 LSP client",
-	"version": "0.0.4",
-	"publisher": "xldenis",
-	"repository": "https://github.com/xldenis/whycode",
-	"engines": {
-		"vscode": "^1.65.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onCommand:extension.Why",
-		"onCommand:extension.Prove"
-	],
-	"main": "./out/main.js",
-	"contributes": {
-		"commands": [
-			{
-				"command": "extension.Why",
-				"title": "Start Why3"
-			},
-			{
-				"command": "extension.ResetSession",
-				"title": "Reset Proof Session"
-			},
-			{
-				"command": "extension.reloadSession",
-				"title": "Reload Proof Session"
-			},
-			{
-				"command": "taskTree.runAuto0",
-				"title": "Run Auto 0"
-			},
-			{
-				"command": "taskTree.runAuto1",
-				"title": "Run Auto 1"
-			},
-			{
-				"command": "taskTree.runAuto2",
-				"title": "Run Auto 2"
-			},
-			{
-				"command": "taskTree.runAuto3",
-				"title": "Run Auto 3"
-			},
-			{
-				"command": "taskTree.splitVC",
-				"title": "Run Split VC"
-			}
-		],
-		"views": {
-			"debug": [
-				{
-					"id": "taskTree",
-					"name": "Task Tree"
-				}
-			]
-		},
-		"configuration": {
-			"type": "object",
-			"title": "Why3",
-			"properties": {
-				"whycode.executablePath": {
-					"type": "string",
-					"description": "Specifies the path at which the WhyCode executable can be found"
-				},
-				"whycode.extraArgs": {
-					"type": "array",
-					"description": "Extra arguments to provide Why3",
-					"default": []
-				},
-				"whycode.maxNumberOfProblems": {
-					"scope": "resource",
-					"type": "number",
-					"default": 100,
-					"description": "Controls the maximum number of problems produced by the server."
-				},
-				"whycode.trace.server": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"off",
-						"messages",
-						"verbose"
-					],
-					"default": "messages",
-					"description": "Traces the communication between VS Code and the language server."
-				}
-			}
-		},
-		"menus": {
-			"view/item/context": [
-				{
-					"command": "taskTree.runAuto0",
-					"group": "context",
-					"when": "view == taskTree"
-				},
-				{
-					"command": "taskTree.runAuto1",
-					"group": "context",
-					"when": "view == taskTree"
-				},
-				{
-					"command": "taskTree.runAuto2",
-					"group": "context",
-					"when": "view == taskTree"
-				},
-				{
-					"command": "taskTree.runAuto3",
-					"group": "context",
-					"when": "view == taskTree"
-				},
-				{
-					"command": "taskTree.splitVC",
-					"group": "context",
-					"when": "view == taskTree"
-				}
-			]
-		},
-		"languages": [
-			{
-				"id": "MLCFG",
-				"extensions": [
-					".mlcfg"
-				]
-			}
-		],
-		"grammars": [
-			{
-				"language": "MLCFG",
-				"scopeName": "source.mlcfg",
-				"path": "./Why3.tmLanguage.json"
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run esbuild-base -- --minify",
-		"esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
-		"esbuild": "npm run esbuild-base -- --sourcemap",
-		"esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
-		"test-compile": "tsc -p ./",
-		"compile": "tsc -p ./",
-		"lint": "eslint . --ext .ts,.tsx",
-		"watch": "tsc -watch -p ./"
-	},
-	"dependencies": {
-		"vscode-languageclient": "^8.0.0"
-	},
-	"devDependencies": {
-		"@types/node": "^12.12.0",
-		"@types/vscode": "^1.65.0",
-		"@typescript-eslint/eslint-plugin": "^4.16.0",
-		"@typescript-eslint/parser": "^4.16.0",
-		"esbuild": "^0.17.11",
-		"eslint": "^7.21.0",
-		"typescript": "^4.2.2"
-	}
+  "name": "whycode",
+  "displayName": "whycode",
+  "description": "Why3 LSP client",
+  "version": "0.0.4",
+  "publisher": "xldenis",
+  "repository": "https://github.com/xldenis/whycode",
+  "engines": {
+    "vscode": "^1.65.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:extension.Prove"
+  ],
+  "main": "./out/main.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "whycode.start",
+        "title": "Why3: Create or load session"
+      },
+      {
+        "command": "whycode.reset_session",
+        "title": "Why3: Reset Proof Session"
+      },
+      {
+        "command": "whycode.reload_session",
+        "title": "Why3: Reload Proof Session"
+      },
+      {
+        "command": "whycode.replay_session",
+        "title": "Why3 Replay Proof Session"
+      }
+    ],
+    "views": {
+      "debug": [
+        {
+          "id": "taskTree",
+          "name": "Task Tree"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Why3",
+      "properties": {
+        "whycode.executablePath": {
+          "type": "string",
+          "description": "Specifies the path at which the WhyCode executable can be found"
+        },
+        "whycode.extraArgs": {
+          "type": "array",
+          "description": "Extra arguments to provide Why3",
+          "default": []
+        },
+        "whycode.maxNumberOfProblems": {
+          "scope": "resource",
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "whycode.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "messages",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "taskTree.runAuto0",
+          "group": "context",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "taskTree.runAuto1",
+          "group": "context",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "taskTree.runAuto2",
+          "group": "context",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "taskTree.runAuto3",
+          "group": "context",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "taskTree.splitVC",
+          "group": "context",
+          "when": "view == taskTree"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "MLCFG",
+        "extensions": [
+          ".mlcfg"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "MLCFG",
+        "scopeName": "source.mlcfg",
+        "path": "./Why3.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "test-compile": "tsc -p ./",
+    "compile": "tsc -p ./",
+    "lint": "eslint . --ext .ts,.tsx",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.0",
+    "@types/vscode": "^1.65.0",
+    "@typescript-eslint/eslint-plugin": "^4.16.0",
+    "@typescript-eslint/parser": "^4.16.0",
+    "esbuild": "^0.17.11",
+    "eslint": "^7.21.0",
+    "prettier": "2.8.4",
+    "typescript": "^4.2.2"
+  }
 }

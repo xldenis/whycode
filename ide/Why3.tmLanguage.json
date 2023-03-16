@@ -1,9 +1,5 @@
 {
-  "fileTypes": [
-    "mlw",
-    "mlcfg",
-    "stdout"
-  ],
+  "fileTypes": ["mlw", "mlcfg", "stdout"],
   "name": "Why3",
   "patterns": [
     {
