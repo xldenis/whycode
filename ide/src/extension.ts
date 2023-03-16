@@ -7,6 +7,7 @@ import {
     DocumentUri,
     LanguageClient,
     LanguageClientOptions,
+    NotificationType,
     RequestType,
     ServerOptions,
 } from "vscode-languageclient/node";
@@ -22,43 +23,57 @@ interface ResolveSessionParams {
 type ResolveSessionResponse = ResolveSessionParams;
 
 export const resolve = new RequestType<ResolveSessionParams, ResolveSessionResponse | null, unknown>("proof/resolveSesion");
+export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/start");
 
 const trees: Map<string, TaskTree> = new Map();
-let proofDocs: Set<vscode.Uri>;
+const proofDocs: Set<vscode.Uri> = new Set();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildCommands(): [string, (...args: any[]) => any][] {
     return [
         [
-            "taskTree.run_auto_0",
+            "whycode.task_tree.run_auto_0",
             (task: TaskNode) => {
                 vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Auto_level_0");
             },
         ],
         [
-            "taskTree.split_vc",
+            "whycode.task_tree.split_vc",
             (task: TaskNode) => {
                 vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Split_VC");
             },
         ],
         [
-            "extension.reset_session",
+            "whycode.reset_session",
             () => {
                 const uri = vscode.window.activeTextEditor?.document.uri?.toString();
                 if (uri != undefined) {
-                    client.sendRequest("proof/resetSession", { uri: uri, dummy: true });
+                    client.sendRequest("proof/resetSession", { uri: uri });
                     vscode.window.showInformationMessage("Session Reset");
 
                 }
             },
         ],
         [
-            "extension.reload_session",
+            "whycode.reload_session",
             () => {
                 const uri = vscode.window.activeTextEditor?.document.uri?.toString();
                 if (uri == undefined) { return; }
                 console.log(uri);
-                client.sendNotification("proof/reloadSession", {
+                client.sendNotification("proof/reload", {
+                    uri: uri,
+                });
+
+                vscode.window.showInformationMessage("Session Reloaded");
+            },
+        ],
+        [
+            "whycode.replay_session",
+            () => {
+                const uri = vscode.window.activeTextEditor?.document.uri?.toString();
+                if (uri == undefined) { return; }
+                console.log(uri);
+                client.sendNotification("proof/replay", {
                     uri: uri,
                     dummy: true,
                 });
@@ -67,7 +82,7 @@ function buildCommands(): [string, (...args: any[]) => any][] {
             },
         ],
         [
-            "why3.run_transformation",
+            "whycode.run_transformation",
             (uri: DocumentUri, node: number, command: string) => {
                 client.sendRequest("proof/runTransformation", {
                     uri: uri,
@@ -76,6 +91,21 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 });
             },
         ],
+        [
+            "whycode.start",
+            () => {
+                const document = vscode.window.activeTextEditor?.document;
+                if (document == undefined) { return; }
+
+                // proofDocs.add(document.uri);
+                client.sendNotification(
+                    startProof,
+                    { uri: document.uri.toString() }
+                );
+            }
+        ],
+
+
         // ['proof/changeTreeNode', params => {
         // 	let node = trees.get(params.uri)!.getChild(params.id);
         // 	console.log("update node ", params);
@@ -114,7 +144,7 @@ async function startServer(): Promise<LanguageClient> {
     if (serverSetting == undefined || serverSetting == "") {
         serverSetting = "whycode";
     }
-    
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const serverModule: string = serverSetting!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -140,7 +170,7 @@ async function startServer(): Promise<LanguageClient> {
 
     // Options to control the language client
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [],
+        documentSelector: [{ scheme: "file", language: "rust" }, { scheme: "file", language: "mlcfg" }, { scheme: "file", language: "why3" }],
         synchronize: {},
     };
 
@@ -152,28 +182,28 @@ async function startServer(): Promise<LanguageClient> {
 }
 
 function setupServerEvents() {
-    workspace.onDidChangeTextDocument((event) => {
-        if (event.contentChanges.length === 0) {
-            return;
-        }
-        // check if the document which changed is one we care about
-        // if so, forward that to the LSP server.
-        if (proofDocs.has(event.document.uri)) {
-            // This seems to only be for 'incremental sync'
-            client.sendNotification(
-                DidChangeTextDocumentNotification.type,
-                createConverter().asChangeTextDocumentParams(event)
-            );
-        }
-    });
+    // workspace.onDidChangeTextDocument((event) => {
+    //     if (event.contentChanges.length === 0) {
+    //         return;
+    //     }
+    //     // check if the document which changed is one we care about
+    //     // if so, forward that to the LSP server.
+    //     if (proofDocs.has(event.document.uri)) {
+    //         // This seems to only be for 'incremental sync'
+    //         client.sendNotification(
+    //             DidChangeTextDocumentNotification.type,
+    //             createConverter().asChangeTextDocumentParams(event)
+    //         );
+    //     }
+    // });
 
-    workspace.onDidCloseTextDocument((e) => {
-        // vscode.window.showInformationMessage("Document Close!");
-        // If the document is in our list, then remove it.
-        proofDocs.delete(e.uri);
-        // And notify the server
-        client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
-    });
+    // workspace.onDidCloseTextDocument((e) => {
+    //     // vscode.window.showInformationMessage("Document Close!");
+    //     // If the document is in our list, then remove it.
+    //     proofDocs.delete(e.uri);
+    //     // And notify the server
+    //     client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
+    // });
 }
 
 function setupTaskTree(context: ExtensionContext) {
@@ -193,20 +223,20 @@ function setupTaskTree(context: ExtensionContext) {
     setTimeout(async function () {
         const uri = vscode.window.activeTextEditor?.document.uri?.toString();
         if (uri == undefined) { return; }
-        const id = await client.sendRequest(resolve, { uri: uri });
-        if (id != undefined && trees.get(id.uri) != undefined) {
-            focusOnTree(id.uri);
-        }
+        // const id = await client.sendRequest(resolve, { uri: uri });
+        // if (id != undefined && trees.get(id.uri) != undefined) {
+        //     focusOnTree(id.uri);
+        // }
     }, 250);
 
     const disposable = vscode.window.onDidChangeActiveTextEditor(async (e) => {
         if (e != undefined) {
-            const id = await client.sendRequest(resolve, {
-                uri: e.document.uri.toString(),
-            });
-            if (id != undefined && trees.get(id.uri) != undefined) {
-                focusOnTree(id.uri);
-            }
+            // const id = await client.sendRequest(resolve, {
+            //     uri: e.document.uri.toString(),
+            // });
+            // if (id != undefined && trees.get(id.uri) != undefined) {
+            //     focusOnTree(id.uri);
+            // }
         }
     });
 
@@ -214,6 +244,7 @@ function setupTaskTree(context: ExtensionContext) {
 }
 
 export async function activate(context: ExtensionContext) {
+    vscode.window.showInformationMessage("Whycode loaded");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const client = await startServer();
     setupServerEvents();
@@ -221,7 +252,6 @@ export async function activate(context: ExtensionContext) {
 
     buildCommands().forEach(([name, command]) => {
         const disposable = vscode.commands.registerCommand(name, command);
-
         context.subscriptions.push(disposable);
     });
 }

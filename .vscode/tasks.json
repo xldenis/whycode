@@ -2,36 +2,27 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "npm",
-			"script": "compile",
-			"group": "build",
-			"presentation": {
-				"panel": "dedicated",
-				"reveal": "never"
-			},
-			"problemMatcher": [
-				"$tsc"
-			],
-			"label": "npm: compile",
-			"detail": "tsc -p ./ide"
+		  "label": "Build Extension in Background",
+		  "group": "build",
+		  "type": "npm",
+		  "script": "watch",
+		  "path": "ide/",
+		  "problemMatcher": {
+			"base": "$tsc-watch",
+			"fileLocation": ["relative", "${workspaceFolder}/ide/"]
+		  },
+		  "isBackground": true,
 		},
 		{
-			"type": "npm",
-			"script": "watch",
-			"isBackground": true,
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"presentation": {
-				"panel": "dedicated",
-				"reveal": "never"
-			},
-			"problemMatcher": [
-				"$tsc-watch"
-			],
-			"label": "npm: watch",
-			"detail": "tsc -watch -p ./ide"
-		}
+		  "label": "Build Extension",
+		  "group": "build",
+		  "type": "npm",
+		  "script": "build",
+		  "path": "ide/",
+		  "problemMatcher": {
+			"base": "$tsc",
+			"fileLocation": ["relative", "${workspaceFolder}/ide/"]
+		  },
+		},
 	]
 }

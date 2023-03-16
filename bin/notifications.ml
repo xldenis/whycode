@@ -23,13 +23,25 @@ module ResolveSessionRequest = struct
   [@@deriving to_yojson]
 end
 
+module StartProofNotification = struct
+  type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson] } [@@deriving of_yojson]
+
+  type response = { uri : Lsp.Types.DocumentUri.t [@to_yojson uri_to_yojson] }
+  [@@deriving to_yojson]
+end
+
 module ResetSessionNotification = struct
-  type t = { uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson] dummy : bool }
+  type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson]; }
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]
 end
 
 module ReloadSessionNotification = struct
-  type t = { uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson] dummy : bool }
+  type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson]; }
+  [@@deriving of_yojson] [@@yojson.allow_extra_fields]
+end
+
+module ReplaySessionNotification = struct
+  type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson]; }
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]
 end
 

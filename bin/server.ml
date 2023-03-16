@@ -149,6 +149,10 @@ module SessionManager = struct
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
       cont
+
+  let find_controller (m : manager) id : controller =
+    let session = Hashtbl.find m.path_to_id id in
+    Hashtbl.find m.id_to_controller session
 end
 
 let relativize session_dir f =
@@ -211,7 +215,10 @@ let find_unproved_nodes_at (c : controller) (rng : Range.t) : Session_itp.proofN
 (* Publish a batch of diagnostics for a set of files *)
 let send_all_diags (notify_back : Jsonrpc2.notify_back)
     (diags : (string, Diagnostic.t list) Hashtbl.t) =
-  spawn (fun () -> log_info notify_back (Format.asprintf "sending tasks"));
+  spawn (fun () ->
+      log_info notify_back
+        (Format.asprintf "sending %d tasks"
+           (Hashtbl.fold (fun _ l acc -> acc + List.length l) diags 0)));
   Hashtbl.fold
     (fun file diags lwt ->
       notify_back#set_uri (DocumentUri.of_path file);
@@ -234,88 +241,98 @@ class why_lsp_server () =
 
     method private _on_doc ~(notify_back : Linol_lwt.Jsonrpc2.notify_back)
         (uri : Lsp.Types.DocumentUri.t) (_contents : string) =
-      let cont =
-        SessionManager.find_or_create_controller manager config env (DocumentUri.to_path uri)
-      in
       try
+        let cont = SessionManager.find_controller manager (DocumentUri.to_path uri) in
         let _, _ = Controller_itp.reload_files cont in
         self#publish_diagnostics notify_back (gather_diagnostics_list cont)
-      with Controller_itp.Errors_list _ ->
-        notify_back#send_diagnostic
-          [
-            Lsp.Types.Diagnostic.create ()
-              ~range:
-                (Range.create
-                   ~start:(Position.create ~line:0 ~character:0)
-                   ~end_:(Position.create ~line:0 ~character:0))
-              ~severity:Error ~source:"Why3" ~message:"An error occured";
-          ]
+      with
+      | Controller_itp.Errors_list _ ->
+          notify_back#send_diagnostic
+            [
+              Lsp.Types.Diagnostic.create ()
+                ~range:
+                  (Range.create
+                     ~start:(Position.create ~line:0 ~character:0)
+                     ~end_:(Position.create ~line:0 ~character:0))
+                ~severity:Error ~source:"Why3" ~message:"An error occured";
+            ]
+      | Not_found -> return ()
 
     method on_notif_doc_did_open ~notify_back d ~content = self#_on_doc ~notify_back d.uri content
 
     method on_notif_doc_did_change ~notify_back d _c ~old_content:_old ~new_content =
       self#_on_doc ~notify_back d.uri new_content
 
-    method on_notif_doc_did_close ~notify_back d = return ()
+    (* TODO: keey a mapping of which files are related to which sessions and use that here *)
+    method on_notif_doc_did_close ~notify_back:_ _ = return ()
 
-    method! on_req_code_action ~notify_back ~id c =
-      let cont =
-        SessionManager.find_or_create_controller manager config env
-          (DocumentUri.to_path c.textDocument.uri)
-      in
-      let ids = find_unproved_nodes_at cont c.range in
-
-      let open Wstdlib in
-      let mk_command trans id =
-        Command.create ~title:trans ~command:"why3.runTransformation"
-          ~arguments:[ DocumentUri.yojson_of_t c.textDocument.uri; `Int id; `String trans ]
-          ()
-      in
-      if List.length ids > 0 then
-        let s = cont.controller_strategies in
-        let actions =
-          Hstr.fold
-            (fun s _ acc -> `Command (mk_command s (Obj.magic (List.nth ids 0))) :: acc)
-            s []
+    method! on_req_code_action ~notify_back:_ ~id:_ c =
+      try
+        let cont =
+          SessionManager.find_controller manager (DocumentUri.to_path c.textDocument.uri)
         in
-        return (Some actions)
-      else return None
+        let ids = find_unproved_nodes_at cont c.range in
 
-    method private on_run_command_notif ~notify_back (n : RunTransformationRequest.t)
-        : Yojson.Safe.t t =
-      let open Wstdlib in
-      let* _ = log_info notify_back "Running command" in
+        let open Wstdlib in
+        let mk_command trans id =
+          Command.create ~title:trans ~command:"whycode.run_transformation"
+            ~arguments:[ DocumentUri.yojson_of_t c.textDocument.uri; `Int id; `String trans ]
+            ()
+        in
+        if List.length ids > 0 then
+          let s = cont.controller_strategies in
+          let actions =
+            Hstr.fold
+              (fun s _ acc -> `Command (mk_command s (Obj.magic (List.nth ids 0))) :: acc)
+              s []
+          in
+          return (Some actions)
+        else return None
+      with Not_found -> return None
+
+    method private on_start_proof_notif ~notify_back (n : StartProofNotification.t) =
       let cont =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
-      let promise, resolver = Lwt.wait () in
+      let _, _ = Controller_itp.reload_files cont in
+      self#publish_diagnostics notify_back (gather_diagnostics_list cont)
 
-      let* _, _, _, strat =
-        try return (Hstr.find cont.controller_strategies n.command)
-        with Not_found -> failwith (Format.sprintf "Could not find strategy: %s" n.command)
-      in
-      run_strategy_on_goal cont (Obj.magic n.node)
-        (* EVIL EVIL EVIL: Use a hashmap to convert from proofNodeID to int (sadly, probably just the identity function but oh well *)
-        strat
-        ~notification:(fun _ -> ())
-        ~finalize:(fun _ -> Lwt.wakeup resolver ());
+    method private on_run_command_notif ~notify_back (n : RunTransformationRequest.t)
+        : Yojson.Safe.t t =
+      try
+        let open Wstdlib in
+        let* _ = log_info notify_back "Running command" in
+        let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
+        let promise, resolver = Lwt.wait () in
 
-      let* _ = log_info notify_back "Waiting on..." in
-      let* _ = promise in
-      let* _ = log_info notify_back "Done running!" in
+        let* _, _, _, strat =
+          try return (Hstr.find cont.controller_strategies n.command)
+          with Not_found -> failwith (Format.sprintf "Could not find strategy: %s" n.command)
+        in
+        run_strategy_on_goal cont (Obj.magic n.node)
+          (* EVIL EVIL EVIL: Use a hashmap to convert from proofNodeID to int (sadly, probably just the identity function but oh well *)
+          strat
+          ~notification:(fun _ -> ())
+          ~finalize:(fun _ -> Lwt.wakeup resolver ());
 
-      let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
+        let* _ = log_info notify_back "Waiting on..." in
+        let* _ = promise in
+        let* _ = log_info notify_back "Done running!" in
 
-      return `Null
+        let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
+
+        return `Null
+      with Not_found -> return `Null
 
     method private on_did_save_notif ~notify_back (n : DidSaveTextDocumentParams.t) =
-      let cont =
-        SessionManager.find_or_create_controller manager config env
-          (DocumentUri.to_path n.textDocument.uri)
-      in
-      let* _ = log_info notify_back "Saving session" in
-      Session_itp.save_session cont.controller_session;
-      return ()
+      try
+        let cont =
+          SessionManager.find_controller manager (DocumentUri.to_path n.textDocument.uri)
+        in
+        let* _ = log_info notify_back "Saving session" in
+        Session_itp.save_session cont.controller_session;
+        return ()
+      with Not_found -> return ()
 
     method private publish_diagnostics notify (diags : (string, Diagnostic.t list) Hashtbl.t) =
       let cleared =
@@ -332,33 +349,71 @@ class why_lsp_server () =
       outstanding_diag <- outstanding;
       return ()
 
+    method private on_reset_session ~notify_back (reset : ResetSessionNotification.t) =
+      try
+        let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
+        C.reset_proofs cont ~notification:(fun _ -> ()) ~removed:(fun _ -> ()) None;
+        let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
+        return `Null
+      with Not_found -> return `Null
+
+    method private on_reload_session ~notify_back (reset : ReloadSessionNotification.t) =
+      try
+        let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
+        let _, _ = Controller_itp.reload_files cont in
+        let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
+        return ()
+      with Not_found -> return ()
+
+    method private on_replay_session ~notify_back (reset : ReplaySessionNotification.t) =
+      try
+        let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
+        C.replay ~valid_only:true ~obsolete_only:true cont
+          ~callback:(fun _ _ -> ())
+          ~notification:(fun _ -> ())
+          ~final_callback:(fun _ _ -> ()) ~any:None;
+        let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
+        return ()
+      with Not_found -> return ()
+
     method! on_unknown_request ~notify_back ~id name req =
       let open Lsp.Import in
+      let open Lwt.Infix in
+      let parse f p =
+        let params = Json.read_json_params f (Option.get p) |> Result.join in
+        match params with Error e -> failwith e | Ok p -> return p
+      in
       match name with
       | "proof/runTransformation" -> begin
-          let params = Option.get req in
-          let params = Json.read_json_params RunTransformationRequest.of_yojson params in
-
-          match Result.join params with
-          | Ok p -> self#on_run_command_notif ~notify_back p
-          | Error e -> failwith e
+          let params = parse RunTransformationRequest.of_yojson req in
+          params >>= self#on_run_command_notif ~notify_back
         end
       | "proof/resetSession" -> begin
-          let params = Option.get req in
-          let params = Json.read_json_params ResetSessionNotification.of_yojson params in
-          match Result.join params with
-          | Ok p -> begin
-              let cont =
-                SessionManager.find_or_create_controller manager config env
-                  (DocumentUri.to_path p.uri)
-              in
-              C.reset_proofs cont ~notification:(fun _ -> ()) ~removed:(fun _ -> ()) None;
-              let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
-              return `Null
-            end
-          | Error e -> failwith e
+          let params = parse ResetSessionNotification.of_yojson req in
+          params >>= self#on_reset_session ~notify_back
         end
       | _ -> failwith "Unhandled custom request"
+
+    method! on_unknown_notification ~notify_back notif =
+      let open Lsp.Import in
+      let open Lwt.Infix in
+      let parse f p =
+        let a = Json.message_params p f |> Result.join in
+        match a with Error e -> failwith e | Ok p -> return p
+      in
+      match notif.method_ with
+      | "proof/start" ->
+          let params = parse StartProofNotification.of_yojson notif in
+          params >>= self#on_start_proof_notif ~notify_back
+      | "proof/reloadSession" -> begin
+          let params = parse ReloadSessionNotification.of_yojson notif in
+          params >>= self#on_reload_session ~notify_back
+        end
+      | "proof/replaySession" -> begin
+          let params = parse ReplaySessionNotification.of_yojson notif in
+          params >>= self#on_replay_session ~notify_back
+        end
+      | _ -> return ()
 
     method! on_notification_unhandled ~notify_back notif =
       match notif with

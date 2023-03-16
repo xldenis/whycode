@@ -6,20 +6,20 @@
   "publisher": "xldenis",
   "repository": "https://github.com/xldenis/whycode",
   "engines": {
-    "vscode": "^1.65.0"
+    "vscode": "^1.75.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onCommand:extension.Prove"
+    "onCommand:whycode.start"
   ],
   "main": "./out/main.js",
   "contributes": {
     "commands": [
       {
         "command": "whycode.start",
-        "title": "Why3: Create or load session"
+        "title": "Why3: Start proof"
       },
       {
         "command": "whycode.reset_session",
@@ -75,60 +75,37 @@
       }
     },
     "menus": {
-      "view/item/context": [
-        {
-          "command": "taskTree.runAuto0",
-          "group": "context",
-          "when": "view == taskTree"
-        },
-        {
-          "command": "taskTree.runAuto1",
-          "group": "context",
-          "when": "view == taskTree"
-        },
-        {
-          "command": "taskTree.runAuto2",
-          "group": "context",
-          "when": "view == taskTree"
-        },
-        {
-          "command": "taskTree.runAuto3",
-          "group": "context",
-          "when": "view == taskTree"
-        },
-        {
-          "command": "taskTree.splitVC",
-          "group": "context",
-          "when": "view == taskTree"
-        }
-      ]
     },
     "languages": [
       {
-        "id": "MLCFG",
+        "id": "mlcfg",
         "extensions": [
           ".mlcfg"
+        ]
+      },
+      {
+        "id": "why3",
+        "extensions": [
+          ".mlw"
         ]
       }
     ],
     "grammars": [
       {
-        "language": "MLCFG",
+        "language": "mlcfg",
         "scopeName": "source.mlcfg",
         "path": "./Why3.tmLanguage.json"
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run esbuild-base -- --minify",
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
-    "esbuild": "npm run esbuild-base -- --sourcemap",
-    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "vscode:prepublish": "npm run build-base -- --minify",
+    "build-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+    "build": "npm run build-base -- --sourcemap",
+    "watch": "npm run build-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./",
-    "compile": "tsc -p ./",
     "lint": "prettier --check . && eslint . --ext .ts,.tsx",
-    "fix": "prettier --write . && eslint . --ext .ts,.tsx --fix",
-    "watch": "tsc -watch -p ./"
+    "fix": "prettier --write . && eslint . --ext .ts,.tsx --fix"
   },
   "dependencies": {
     "vscode-languageclient": "^8.0.0"
