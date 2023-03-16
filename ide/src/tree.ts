@@ -115,7 +115,9 @@ export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
     constructor(public tree: TaskTree) {}
 
   // Refreshing the tree view
-  private _onDidChangeTreeData: vscode.EventEmitter<TaskNode | undefined | void> = new vscode.EventEmitter<void | TaskNode | undefined>();
+  private _onDidChangeTreeData: vscode.EventEmitter<TaskNode | undefined | void> = new vscode.EventEmitter<
+    void | TaskNode | undefined
+  >();
   readonly onDidChangeTreeData: vscode.Event<void | TaskNode | undefined> = this._onDidChangeTreeData.event;
 
   public refresh() {
@@ -181,7 +183,6 @@ type AttemptStatus =
   | { type: "UpgradeProver"; prover: Prover }
   | { type: "Removed"; prover: Prover };
 
-
 // Messages
 const enum NodeType {
   NFile = "NFile",
@@ -193,4 +194,3 @@ const enum NodeType {
 type NodeId = number;
 
 type NewNodeNotif<NT> = ["New_node", NodeId, NodeId, [NT], string, boolean];
-

@@ -146,6 +146,13 @@ module SessionManager = struct
       let ses = Session_itp.load_session dir in
       let cont = Controller_itp.create_controller config env ses in
       Server_utils.load_strategies cont;
+      (* HACK: add mlcfg *)
+      let why_file =
+        if Filename.check_suffix id "rs" then Filename.chop_suffix id "rs" ^ "mlcfg" else id
+      in
+
+      Controller_itp.add_file cont why_file;
+
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
       cont
@@ -166,6 +173,7 @@ let get_goal_loc (task : Task.task) : Loc.position =
   let location =
     match location with Some l -> l | None -> Option.get (Task.task_goal task).pr_name.id_loc
   in
+
   location
 
 let unproved_leaf_nodes (c : controller) : Session_itp.proofNodeID list =
@@ -276,16 +284,13 @@ class why_lsp_server () =
         let open Wstdlib in
         let mk_command trans id =
           Command.create ~title:trans ~command:"whycode.run_transformation"
-            ~arguments:[ DocumentUri.yojson_of_t c.textDocument.uri; `Int id; `String trans ]
+            ~arguments:
+              [ DocumentUri.yojson_of_t c.textDocument.uri; Range.yojson_of_t id; `String trans ]
             ()
         in
         if List.length ids > 0 then
           let s = cont.controller_strategies in
-          let actions =
-            Hstr.fold
-              (fun s _ acc -> `Command (mk_command s (Obj.magic (List.nth ids 0))) :: acc)
-              s []
-          in
+          let actions = Hstr.fold (fun s _ acc -> `Command (mk_command s c.range) :: acc) s [] in
           return (Some actions)
         else return None
       with Not_found -> return None
@@ -303,20 +308,35 @@ class why_lsp_server () =
         let open Wstdlib in
         let* _ = log_info notify_back "Running command" in
         let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
-        let promise, resolver = Lwt.wait () in
 
         let* _, _, _, strat =
           try return (Hstr.find cont.controller_strategies n.command)
           with Not_found -> failwith (Format.sprintf "Could not find strategy: %s" n.command)
         in
-        run_strategy_on_goal cont (Obj.magic n.node)
-          (* EVIL EVIL EVIL: Use a hashmap to convert from proofNodeID to int (sadly, probably just the identity function but oh well *)
-          strat
-          ~notification:(fun _ -> ())
-          ~finalize:(fun _ -> Lwt.wakeup resolver ());
+        let ids =
+          match n.target with
+          | `Range r -> find_unproved_nodes_at cont r
+          | `Node i -> [ Obj.magic i ]
+        in
+        let ids =
+          List.map
+            (fun id ->
+              let promise, resolver = Lwt.wait () in
+              ((id, resolver), promise))
+            ids
+        in
+        let ids, promises = List.split ids in
+        List.iter
+          (fun (id, resolver) ->
+            run_strategy_on_goal cont id
+              (* EVIL EVIL EVIL: Use a hashmap to convert from proofNodeID to int (sadly, probably just the identity function but oh well *)
+              strat
+              ~notification:(fun _ -> ())
+              ~finalize:(fun _ -> Lwt.wakeup resolver ()))
+          ids;
 
         let* _ = log_info notify_back "Waiting on..." in
-        let* _ = promise in
+        let* _ = Lwt.join promises in
         let* _ = log_info notify_back "Done running!" in
 
         let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
@@ -371,7 +391,8 @@ class why_lsp_server () =
         C.replay ~valid_only:true ~obsolete_only:true cont
           ~callback:(fun _ _ -> ())
           ~notification:(fun _ -> ())
-          ~final_callback:(fun _ _ -> ()) ~any:None;
+          ~final_callback:(fun _ _ -> ())
+          ~any:None;
         let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
         return ()
       with Not_found -> return ()

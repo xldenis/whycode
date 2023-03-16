@@ -5,9 +5,9 @@
 <prover id="0" name="Alt-Ergo" version="2.4.2" timelimit="1" steplimit="0" memlimit="1000"/>
 <file format="whyml" proved="true">
 <path name=".."/><path name="count.mlw"/>
-<theory name="Top" proved="true">
- <goal name="count&#39;vc" expl="VC for count" proved="true">
- <proof prover="0"><result status="valid" time="0.00" steps="51"/></proof>
+<theory name="Top">
+ <goal name="count&#39;vc" expl="VC for count">
+ <proof prover="0"><result status="valid" time="0.01" steps="51"/></proof>
  </goal>
 </theory>
 </file>

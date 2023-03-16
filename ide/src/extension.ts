@@ -1,4 +1,4 @@
-import { workspace, ExtensionContext } from "vscode";
+import { workspace, ExtensionContext, Range } from "vscode";
 import * as vscode from "vscode";
 
 import {
@@ -17,12 +17,14 @@ import { TaskDataProvider, TaskNode, TaskTree } from "./tree";
 let client: LanguageClient;
 
 interface ResolveSessionParams {
-    uri: DocumentUri;
+  uri: DocumentUri;
 }
 
 type ResolveSessionResponse = ResolveSessionParams;
 
-export const resolve = new RequestType<ResolveSessionParams, ResolveSessionResponse | null, unknown>("proof/resolveSesion");
+export const resolve = new RequestType<ResolveSessionParams, ResolveSessionResponse | null, unknown>(
+    "proof/resolveSesion"
+);
 export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/start");
 
 const trees: Map<string, TaskTree> = new Map();
@@ -50,7 +52,6 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 if (uri != undefined) {
                     client.sendRequest("proof/resetSession", { uri: uri });
                     vscode.window.showInformationMessage("Session Reset");
-
                 }
             },
         ],
@@ -58,7 +59,9 @@ function buildCommands(): [string, (...args: any[]) => any][] {
             "whycode.reload_session",
             () => {
                 const uri = vscode.window.activeTextEditor?.document.uri?.toString();
-                if (uri == undefined) { return; }
+                if (uri == undefined) {
+                    return;
+                }
                 console.log(uri);
                 client.sendNotification("proof/reload", {
                     uri: uri,
@@ -71,7 +74,9 @@ function buildCommands(): [string, (...args: any[]) => any][] {
             "whycode.replay_session",
             () => {
                 const uri = vscode.window.activeTextEditor?.document.uri?.toString();
-                if (uri == undefined) { return; }
+                if (uri == undefined) {
+                    return;
+                }
                 console.log(uri);
                 client.sendNotification("proof/replay", {
                     uri: uri,
@@ -83,10 +88,17 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         ],
         [
             "whycode.run_transformation",
-            (uri: DocumentUri, node: number, command: string) => {
+            (uri: DocumentUri, node: number | Range, command: string) => {
+                let target;
+                if (typeof node == "number") {
+                    target = ["Node", node];
+                } else {
+                    target = ["Range", node];
+                }
+
                 client.sendRequest("proof/runTransformation", {
                     uri: uri,
-                    node: node,
+                    target,
                     command: command,
                 });
             },
@@ -95,16 +107,14 @@ function buildCommands(): [string, (...args: any[]) => any][] {
             "whycode.start",
             () => {
                 const document = vscode.window.activeTextEditor?.document;
-                if (document == undefined) { return; }
+                if (document == undefined) {
+                    return;
+                }
 
                 // proofDocs.add(document.uri);
-                client.sendNotification(
-                    startProof,
-                    { uri: document.uri.toString() }
-                );
-            }
+                client.sendNotification(startProof, { uri: document.uri.toString() });
+            },
         ],
-
 
         // ['proof/changeTreeNode', params => {
         // 	let node = trees.get(params.uri)!.getChild(params.id);
@@ -134,8 +144,8 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         // 	console.log("create node ", params);
         // 	view.reveal(node);
 
-        // 	treeDataProvider.refresh();
-        // }],
+    // 	treeDataProvider.refresh();
+    // }],
     ];
 }
 
@@ -170,7 +180,11 @@ async function startServer(): Promise<LanguageClient> {
 
     // Options to control the language client
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: "file", language: "rust" }, { scheme: "file", language: "mlcfg" }, { scheme: "file", language: "why3" }],
+        documentSelector: [
+            { scheme: "file", language: "rust" },
+            { scheme: "file", language: "mlcfg" },
+            { scheme: "file", language: "why3" },
+        ],
         synchronize: {},
     };
 
@@ -196,7 +210,6 @@ function setupServerEvents() {
     //         );
     //     }
     // });
-
     // workspace.onDidCloseTextDocument((e) => {
     //     // vscode.window.showInformationMessage("Document Close!");
     //     // If the document is in our list, then remove it.
@@ -215,18 +228,20 @@ function setupTaskTree(context: ExtensionContext) {
     context.subscriptions.push(view);
 
     const focusOnTree = function (id: string) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         treeDataProvider.tree = trees.get(id)!;
         treeDataProvider.refresh();
     };
 
     setTimeout(async function () {
         const uri = vscode.window.activeTextEditor?.document.uri?.toString();
-        if (uri == undefined) { return; }
-        // const id = await client.sendRequest(resolve, { uri: uri });
-        // if (id != undefined && trees.get(id.uri) != undefined) {
-        //     focusOnTree(id.uri);
-        // }
+        if (uri == undefined) {
+            return;
+        }
+    // const id = await client.sendRequest(resolve, { uri: uri });
+    // if (id != undefined && trees.get(id.uri) != undefined) {
+    //     focusOnTree(id.uri);
+    // }
     }, 250);
 
     const disposable = vscode.window.onDidChangeActiveTextEditor(async (e) => {
