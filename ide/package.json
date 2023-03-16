@@ -126,7 +126,8 @@
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./",
     "compile": "tsc -p ./",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "prettier --check . && eslint . --ext .ts,.tsx",
+    "fix": "prettier --write . && eslint . --ext .ts,.tsx --fix",
     "watch": "tsc -watch -p ./"
   },
   "dependencies": {
@@ -135,8 +136,8 @@
   "devDependencies": {
     "@types/node": "^12.12.0",
     "@types/vscode": "^1.65.0",
-    "@typescript-eslint/eslint-plugin": "^4.16.0",
-    "@typescript-eslint/parser": "^4.16.0",
+    "@typescript-eslint/eslint-plugin": "^5.55.0",
+    "@typescript-eslint/parser": "^5.55.0",
     "esbuild": "^0.17.11",
     "eslint": "^7.21.0",
     "prettier": "2.8.4",
