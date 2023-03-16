@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as vscode from "vscode";
 
 abstract class ProofStatus {
@@ -113,10 +115,10 @@ export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
     constructor(public tree: TaskTree) {}
 
   // Refreshing the tree view
-  private _onDidChangeTreeData: vscode.EventEmitter<TaskNode | undefined | void> = new vscode.EventEmitter<any>();
-  readonly onDidChangeTreeData: vscode.Event<any> = this._onDidChangeTreeData.event;
+  private _onDidChangeTreeData: vscode.EventEmitter<TaskNode | undefined | void> = new vscode.EventEmitter<void | TaskNode | undefined>();
+  readonly onDidChangeTreeData: vscode.Event<void | TaskNode | undefined> = this._onDidChangeTreeData.event;
 
-  public refresh(): any {
+  public refresh() {
       this._onDidChangeTreeData.fire();
   }
 
@@ -160,8 +162,8 @@ export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
       }
   }
 
-  getParent(element: TaskNode): TaskNode {
-      return this.tree.getChild(element.parentId)!;
+  getParent(element: TaskNode): TaskNode | undefined {
+      return this.tree.getChild(element.parentId);
   }
 }
 type Prover = undefined;
@@ -179,31 +181,6 @@ type AttemptStatus =
   | { type: "UpgradeProver"; prover: Prover }
   | { type: "Removed"; prover: Prover };
 
-type AttemptStatusMessage =
-  | ["Undone"]
-  | ["Scheduled"]
-  | ["Running"]
-  | ["Done", ProverResult]
-  | ["Interrupted"]
-  | ["Detached"]
-  // | ["InternalFailure"]
-  | ["Uninstalled", Prover]
-  | ["UpgradeProver", Prover]
-  | ["Removed", Prover];
-
-function fromAttemptMessage(msg: AttemptStatusMessage): AttemptStatus {
-    if (msg[0] == "Done") {
-        return { type: msg[0], result: msg[1] };
-    } else if (msg[0] == "Uninstalled") {
-        return { type: msg[0], prover: msg[1] };
-    } else if (msg[0] == "UpgradeProver") {
-        return { type: msg[0], prover: msg[1] };
-    } else if (msg[0] == "Removed") {
-        return { type: msg[0], prover: msg[1] };
-    } else {
-        return { type: msg[0] };
-    }
-}
 
 // Messages
 const enum NodeType {
@@ -217,15 +194,3 @@ type NodeId = number;
 
 type NewNodeNotif<NT> = ["New_node", NodeId, NodeId, [NT], string, boolean];
 
-type NodeChangeNotif = [string, NodeId, UpdateInfo];
-type UpdateInfo =
-  | ["Proved", boolean]
-  | ["Name_change", string]
-  | ["Proof_status_change", AttemptStatusMessage, boolean, any[]];
-
-type MessageNotif =
-  | ["Information", string]
-  | ["Error", string]
-  | ["Query_Error", number, string]
-  | ["File_Saved", string]
-  | ["Task_Monitor", number, number, number];

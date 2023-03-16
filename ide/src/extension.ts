@@ -1,44 +1,32 @@
-import * as path from "path";
 import { workspace, ExtensionContext } from "vscode";
 import * as vscode from "vscode";
 
 import {
     DidChangeTextDocumentNotification,
     DidCloseTextDocumentNotification,
-    DidOpenTextDocumentNotification,
     DocumentUri,
     LanguageClient,
     LanguageClientOptions,
-    ProtocolNotificationType,
-    ProtocolRequestType,
     RequestType,
     ServerOptions,
-    TransportKind,
-    URI,
 } from "vscode-languageclient/node";
 import { createConverter } from "vscode-languageclient/lib/common/codeConverter";
-import { countReset } from "console";
-import { GoalNode, TaskDataProvider, TaskNode, TaskTree } from "./tree";
+import { TaskDataProvider, TaskNode, TaskTree } from "./tree";
 
 let client: LanguageClient;
 
 interface ResolveSessionParams {
-  uri: DocumentUri;
+    uri: DocumentUri;
 }
 
 type ResolveSessionResponse = ResolveSessionParams;
 
-namespace ResolveSession {
-  export const method: "proof/resolveSession" = "proof/resolveSession";
-  export const type: RequestType<ResolveSessionParams, ResolveSessionResponse | null, {}> = new RequestType(
-      method,
-      undefined
-  );
-}
+export const resolve = new RequestType<ResolveSessionParams, ResolveSessionResponse | null, unknown>("proof/resolveSesion");
 
 const trees: Map<string, TaskTree> = new Map();
 let proofDocs: Set<vscode.Uri>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildCommands(): [string, (...args: any[]) => any][] {
     return [
         [
@@ -56,15 +44,19 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         [
             "extension.reset_session",
             () => {
-                const uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
-                client.sendRequest("proof/resetSession", { uri: uri, dummy: true });
-                vscode.window.showInformationMessage("Session Reset");
+                const uri = vscode.window.activeTextEditor?.document.uri?.toString();
+                if (uri != undefined) {
+                    client.sendRequest("proof/resetSession", { uri: uri, dummy: true });
+                    vscode.window.showInformationMessage("Session Reset");
+
+                }
             },
         ],
         [
             "extension.reload_session",
             () => {
-                const uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
+                const uri = vscode.window.activeTextEditor?.document.uri?.toString();
+                if (uri == undefined) { return; }
                 console.log(uri);
                 client.sendNotification("proof/reloadSession", {
                     uri: uri,
@@ -112,8 +104,8 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         // 	console.log("create node ", params);
         // 	view.reveal(node);
 
-    // 	treeDataProvider.refresh();
-    // }],
+        // 	treeDataProvider.refresh();
+        // }],
     ];
 }
 
@@ -122,12 +114,15 @@ async function startServer(): Promise<LanguageClient> {
     if (serverSetting == undefined || serverSetting == "") {
         serverSetting = "whycode";
     }
+    
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const serverModule: string = serverSetting!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const serverArgs: string[] = vscode.workspace.getConfiguration("whycode").get("extraArgs")!;
 
     // The debug options for the server
     // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
-    const debugOptions = { execArgv: ["--nolazy", "--inspect=6009"] };
+    // const debugOptions = { execArgv: ["--nolazy", "--inspect=6009"] };
 
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used
@@ -173,8 +168,8 @@ function setupServerEvents() {
     });
 
     workspace.onDidCloseTextDocument((e) => {
-    // vscode.window.showInformationMessage("Document Close!");
-    // If the document is in our list, then remove it.
+        // vscode.window.showInformationMessage("Document Close!");
+        // If the document is in our list, then remove it.
         proofDocs.delete(e.uri);
         // And notify the server
         client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
@@ -190,14 +185,15 @@ function setupTaskTree(context: ExtensionContext) {
     context.subscriptions.push(view);
 
     const focusOnTree = function (id: string) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         treeDataProvider.tree = trees.get(id)!;
         treeDataProvider.refresh();
     };
 
     setTimeout(async function () {
-        const uri: DocumentUri = vscode.window.activeTextEditor?.document.uri?.toString()!;
-
-        const id = await client.sendRequest(ResolveSession.type, { uri: uri });
+        const uri = vscode.window.activeTextEditor?.document.uri?.toString();
+        if (uri == undefined) { return; }
+        const id = await client.sendRequest(resolve, { uri: uri });
         if (id != undefined && trees.get(id.uri) != undefined) {
             focusOnTree(id.uri);
         }
@@ -205,7 +201,7 @@ function setupTaskTree(context: ExtensionContext) {
 
     const disposable = vscode.window.onDidChangeActiveTextEditor(async (e) => {
         if (e != undefined) {
-            const id = await client.sendRequest(ResolveSession.type, {
+            const id = await client.sendRequest(resolve, {
                 uri: e.document.uri.toString(),
             });
             if (id != undefined && trees.get(id.uri) != undefined) {
@@ -218,8 +214,7 @@ function setupTaskTree(context: ExtensionContext) {
 }
 
 export async function activate(context: ExtensionContext) {
-    const proofDocs: Set<vscode.Uri> = new Set();
-
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const client = await startServer();
     setupServerEvents();
     setupTaskTree(context);
