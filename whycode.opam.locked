@@ -79,7 +79,7 @@ build: [
 pin-depends: [
   ["linol.0.4" "git+https://github.com/c-cube/linol.git"]
   ["linol-lwt.0.4" "git+https://github.com/c-cube/linol.git"]
-  ["why3.1.5.1" "git+ssh://git@gitlab.inria.fr/why3/why3.git"]
+  ["why3.1.5.1" "git+https://gitlab.inria.fr/why3/why3.git"]
 ]
 synopsis: "An LSP server for Why3"
 description:
