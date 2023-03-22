@@ -1,0 +1,56 @@
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  build_server:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: ${{ env.FETCH_DEPTH }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Use OCaml
+        with:
+          ocaml-compiler: 4.14.0
+          dune-cache: true
+        env:
+          OPAMLOCKED: locked
+        uses: ocaml/setup-ocaml@v2
+
+      - run: opam install . --deps-only --locked
+
+      - run: LINKING_MODE=static opam exec -- dune build
+
+      - run: npm ci
+        working-directory: ide
+
+      - name: Copy server to bundle
+        run: cp _build/default/bin/main.exe ide/whycode
+
+      - name: Package
+        run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix"
+        working-directory: ide
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: dist-${{ matrix.target }}
+          path: ./whycode-${{ matrix.code-target }}.vsix
+
+  # publish:
+  #   needs: build_server
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Release
+  #       uses: softprops/action-gh-release@v1
