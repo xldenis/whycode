@@ -48,7 +48,10 @@ jobs:
         working-directory: ide
 
       - name: Copy server to bundle
-        run: cp _build/default/bin/main.exe ide/whycode
+        run: |
+          cp _build/default/bin/main.exe ide/whycode
+          cp -R _opam/lib/why3 ide/why-lib
+          cp -R _opam/share/why3 ide/why3-data
 
       - name: Package
         run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix"

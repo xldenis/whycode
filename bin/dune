@@ -1,14 +1,16 @@
 (executable
-  (public_name whycode)
-  (name main)
-
-  (flags (:standard (:include linking-flags-fserv.sexp)))
-  (libraries whycode why3 lsp linol linol-lwt uri yojson lwt.unix threads
+ (public_name whycode)
+ (name main)
+ (flags
+  (:standard
+   (:include linking-flags-fserv.sexp)))
+ (libraries whycode why3 lsp linol linol-lwt uri yojson lwt.unix threads
    ppx_deriving_yojson.runtime ppx_deriving)
  (preprocess
   (pps ppx_deriving.show ppx_deriving_yojson)))
 
 (rule
-  (with-stdout-to linking-flags-fserv.sexp
-    (run ./gen-linking-flags.sh %{env:LINKING_MODE=dynamic} %{ocaml-config:system})))
-
+ (with-stdout-to
+  linking-flags-fserv.sexp
+  (run ./gen-linking-flags.sh %{env:LINKING_MODE=dynamic}
+    %{ocaml-config:system})))

@@ -237,6 +237,7 @@ class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
   let config', env' = Whyconf.Args.initialize cli_opts (fun _ -> ()) usage_str in
+
   object (self)
     inherit Linol_lwt.Jsonrpc2.server
     val mutable config = config'
@@ -397,7 +398,8 @@ class why_lsp_server () =
         return ()
       with Not_found -> return ()
 
-    method private on_unknown_request ~(notify_back:Jsonrpc2.notify_back)  ~id name req : Yojson.Safe.t t  =
+    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id name req
+        : Yojson.Safe.t t =
       let open Lsp.Import in
       let open Lwt.Infix in
       let parse f p =
@@ -436,10 +438,12 @@ class why_lsp_server () =
         end
       | _ -> return ()
 
-    method! on_request_unhandled (type r) ~(notify_back:Jsonrpc2.notify_back) ~(id: Linol.Server.Req_id.t) (req : r Lsp.Client_request.t) : r t  =
-    match req with
-    | Lsp.Client_request.UnknownRequest r -> self#on_unknown_request ~notify_back ~id r.meth r.params
-    | _ -> assert false
+    method! on_request_unhandled (type r) ~(notify_back : Jsonrpc2.notify_back)
+        ~(id : Linol.Server.Req_id.t) (req : r Lsp.Client_request.t) : r t =
+      match req with
+      | Lsp.Client_request.UnknownRequest r ->
+          self#on_unknown_request ~notify_back ~id r.meth r.params
+      | _ -> assert false
 
     method! on_notification_unhandled ~notify_back notif =
       match notif with

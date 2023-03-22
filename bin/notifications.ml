@@ -66,10 +66,7 @@ module NewNodeNotification = struct
   [@@deriving to_yojson] [@@yojson.allow_extra_fields]
 
   let to_jsonrpc n : Jsonrpc.Notification.t =
-    {
-      method_ = "proof/addTreeNode";
-      params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n));
-    }
+    { method_ = "proof/addTreeNode"; params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n)) }
 end
 
 module UpdateNodeNotification = struct
@@ -126,8 +123,5 @@ module TreeNotification = struct
   [@@deriving to_yojson]
 
   let to_jsonrpc n : Jsonrpc.Notification.t =
-    {
-      method_ = "proof/publishTree";
-      params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n));
-    }
+    { method_ = "proof/publishTree"; params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n)) }
 end

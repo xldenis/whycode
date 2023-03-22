@@ -1,4 +1,4 @@
-import { workspace, ExtensionContext, Range } from "vscode";
+import { workspace, ExtensionContext, Range, Uri } from "vscode";
 import * as vscode from "vscode";
 
 import {
@@ -18,6 +18,9 @@ let client: LanguageClient;
 
 interface ResolveSessionParams {
   uri: DocumentUri;
+}
+interface Env {
+  [name: string]: string;
 }
 
 type ResolveSessionResponse = ResolveSessionParams;
@@ -149,14 +152,29 @@ function buildCommands(): [string, (...args: any[]) => any][] {
     ];
 }
 
-async function startServer(): Promise<LanguageClient> {
+async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     let serverSetting: string | undefined = vscode.workspace.getConfiguration("whycode").get("executablePath");
     if (serverSetting == undefined || serverSetting == "") {
         serverSetting = "whycode";
     }
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const serverModule: string = serverSetting!;
+
+    let serverPath = serverSetting;
+
+    if (serverPath == undefined) {
+        serverPath = Uri.joinPath(context.extensionUri, "whycode").fsPath;
+    }
+
+    let libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
+    if (libDir == undefined) {
+        libDir = Uri.joinPath(context.extensionUri, "why-lib").fsPath;
+    }
+
+    let dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
+    if (dataDir == undefined) {
+        dataDir = Uri.joinPath(context.extensionUri, "why-data").fsPath;
+    }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const serverArgs: string[] = vscode.workspace.getConfiguration("whycode").get("extraArgs")!;
 
@@ -166,20 +184,29 @@ async function startServer(): Promise<LanguageClient> {
 
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used
+    const outputChannel = vscode.window.createOutputChannel("WhyCode Server");
+    const traceOutputChannel = vscode.window.createOutputChannel("Whycode Server Trace");
+    const env: Env = {
+        WHY3LIB: libDir,
+        WHY3DATA: dataDir,
+    };
+
+    const run = {
+        command: serverPath,
+        args: serverArgs,
+        options: {
+            env,
+        },
+    };
     const serverOptions: ServerOptions = {
-        run: {
-            command: serverModule,
-            args: serverArgs,
-        },
-        debug: {
-            command: serverModule,
-            args: serverArgs,
-            // options: debugOptions
-        },
+        run,
+        debug: run,
     };
 
     // Options to control the language client
     const clientOptions: LanguageClientOptions = {
+        outputChannel,
+        traceOutputChannel,
         documentSelector: [
             { scheme: "file", language: "rust" },
             { scheme: "file", language: "mlcfg" },
@@ -261,7 +288,7 @@ function setupTaskTree(context: ExtensionContext) {
 export async function activate(context: ExtensionContext) {
     vscode.window.showInformationMessage("Whycode loaded");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const client = await startServer();
+    const client = await startServer(context);
     setupServerEvents();
     setupTaskTree(context);
 

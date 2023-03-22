@@ -50,6 +50,14 @@
           "type": "string",
           "description": "Specifies the path at which the WhyCode executable can be found"
         },
+        "whycode.libPath": {
+          "type": "string",
+          "description": "Specifies the path at which the Why3 LIBDIR can be found"
+        },
+        "whycode.dataPath": {
+          "type": "string",
+          "description": "Specifies the path at which the Why3 DATADIR can be found"
+        },
         "whycode.extraArgs": {
           "type": "array",
           "description": "Extra arguments to provide Why3",
