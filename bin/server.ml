@@ -397,7 +397,7 @@ class why_lsp_server () =
         return ()
       with Not_found -> return ()
 
-    method! on_unknown_request ~notify_back ~id name req =
+    method! on_unknown_request ~(notify_back:Jsonrpc2.notify_back) ~server_request ~id name req =
       let open Lsp.Import in
       let open Lwt.Infix in
       let parse f p =
@@ -418,8 +418,8 @@ class why_lsp_server () =
     method! on_unknown_notification ~notify_back notif =
       let open Lsp.Import in
       let open Lwt.Infix in
-      let parse f p =
-        let a = Json.message_params p f |> Result.join in
+      let parse f (p : Jsonrpc.Notification.t) =
+        let a = Json.message_params p.params f |> Result.join in
         match a with Error e -> failwith e | Ok p -> return p
       in
       match notif.method_ with

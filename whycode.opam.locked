@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "whycode"
-version: "~dev"
+version: "0.0.2"
 depends: [
   "angstrom" {= "0.15.0"}
   "base" {= "v0.15.0"}
@@ -13,6 +13,7 @@ depends: [
   "camlzip" {= "1.11"}
   "cmdliner" {= "1.1.1"}
   "conf-autoconf" {= "0.1"}
+  "conf-gmp" {= "4"}
   "conf-pkg-config" {= "2"}
   "conf-which" {= "1"}
   "conf-zlib" {= "1"}
@@ -21,6 +22,7 @@ depends: [
   "dune" {= "3.4.1"}
   "dune-configurator" {= "3.4.1"}
   "dyn" {= "3.4.1"}
+  "fmt" {= "0.9.0"}
   "jane-street-headers" {= "v0.15.0"}
   "jsonrpc" {= "1.11.6"}
   "jst-config" {= "v0.15.1"}
@@ -44,6 +46,7 @@ depends: [
   "ocamlgraph" {= "2.0.0"}
   "ocplib-endian" {= "1.2"}
   "ordering" {= "3.4.1"}
+  "parsexp" {= "v0.15.0"}
   "pp" {= "1.1.2"}
   "ppx_assert" {= "v0.15.0"}
   "ppx_base" {= "v0.15.0"}
@@ -64,6 +67,7 @@ depends: [
   "re" {= "1.10.4"}
   "result" {= "1.5"}
   "seq" {= "base"}
+  "sexplib" {= "v0.15.1"}
   "sexplib0" {= "v0.15.1"}
   "stdio" {= "v0.15.0"}
   "stdlib-shims" {= "0.3.0"}
@@ -74,6 +78,7 @@ depends: [
   "uutf" {= "1.0.3"}
   "why3" {= "1.5.1"}
   "yojson" {= "2.0.2"}
+  "zarith" {= "1.12"}
 ]
 build: [
   ["dune" "subst"] {dev}
@@ -94,3 +99,11 @@ pin-depends: [
   ["linol-lwt.0.4" "git+https://github.com/xldenis/linol.git"]
   ["why3.1.5.1" "git+ssh://git@gitlab.inria.fr/why3/why3.git"]
 ]
+synopsis: "An LSP server for Why3"
+description:
+  "The whycode opam package is the backend component of the whycode extension for VSCode which allows viewing and editing Why3 and Creusot proofs from VSCode."
+maintainer: "Xavier Denis <xldenis@gmail.com>"
+authors: "Xavier Denis <xldenis@gmail.com>"
+license: "LGPL-2.1-or-later"
+homepage: "https://github.com/xldenis/whycode"
+bug-reports: "https://github.com/xldenis/whycode/issues"

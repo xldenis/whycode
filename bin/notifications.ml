@@ -65,11 +65,10 @@ module NewNodeNotification = struct
   (* also type and detached *)
   [@@deriving to_yojson] [@@yojson.allow_extra_fields]
 
-  let to_jsonrpc n : Jsonrpc.Message.notification =
+  let to_jsonrpc n : Jsonrpc.Notification.t =
     {
       method_ = "proof/addTreeNode";
-      id = ();
-      params = Some (Jsonrpc.Message.Structured.of_json (to_yojson n));
+      params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n));
     }
 end
 
@@ -102,11 +101,10 @@ module UpdateNodeNotification = struct
           end)
     | _ -> failwith "of_notif: wrong notification"
 
-  let to_jsonrpc n : Jsonrpc.Message.notification =
+  let to_jsonrpc n : Jsonrpc.Notification.t =
     {
       method_ = "proof/changeTreeNode";
-      id = ();
-      params = Some (Jsonrpc.Message.Structured.of_json (to_yojson n));
+      params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n));
     }
 end
 
@@ -114,11 +112,10 @@ module DeleteNodeNotification = struct
   type t = { id : int; uri : Lsp.Types.DocumentUri.t [@to_yojson uri_to_yojson] }
   [@@deriving to_yojson]
 
-  let to_jsonrpc n : Jsonrpc.Message.notification =
+  let to_jsonrpc n : Jsonrpc.Notification.t =
     {
       method_ = "proof/removeTreeNode";
-      id = ();
-      params = Some (Jsonrpc.Message.Structured.of_json (to_yojson n));
+      params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n));
     }
 end
 
@@ -128,10 +125,9 @@ module TreeNotification = struct
   }
   [@@deriving to_yojson]
 
-  let to_jsonrpc n : Jsonrpc.Message.notification =
+  let to_jsonrpc n : Jsonrpc.Notification.t =
     {
       method_ = "proof/publishTree";
-      id = ();
-      params = Some (Jsonrpc.Message.Structured.of_json (to_yojson n));
+      params = Some (Jsonrpc.Structured.t_of_yojson (to_yojson n));
     }
 end
