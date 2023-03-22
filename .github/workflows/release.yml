@@ -1,8 +1,14 @@
 name: Release
 on:
+  schedule:
+    - cron: "0 0 * * *" # midnight UTC
+
+  workflow_dispatch:
+
   push:
-    tags:
-      - "v*"
+    branches:
+      - release
+
 jobs:
   build_server:
     strategy:
