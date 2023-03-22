@@ -397,7 +397,7 @@ class why_lsp_server () =
         return ()
       with Not_found -> return ()
 
-    method! on_unknown_request ~(notify_back:Jsonrpc2.notify_back) ~server_request ~id name req =
+    method private on_unknown_request ~(notify_back:Jsonrpc2.notify_back)  ~id name req : Yojson.Safe.t t  =
       let open Lsp.Import in
       let open Lwt.Infix in
       let parse f p =
@@ -415,7 +415,7 @@ class why_lsp_server () =
         end
       | _ -> failwith "Unhandled custom request"
 
-    method! on_unknown_notification ~notify_back notif =
+    method private on_unknown_notification ~notify_back (notif : Jsonrpc.Notification.t) =
       let open Lsp.Import in
       let open Lwt.Infix in
       let parse f (p : Jsonrpc.Notification.t) =
@@ -435,6 +435,11 @@ class why_lsp_server () =
           params >>= self#on_replay_session ~notify_back
         end
       | _ -> return ()
+
+    method! on_request_unhandled (type r) ~(notify_back:Jsonrpc2.notify_back) ~(id: Linol.Server.Req_id.t) (req : r Lsp.Client_request.t) : r t  =
+    match req with
+    | Lsp.Client_request.UnknownRequest r -> self#on_unknown_request ~notify_back ~id r.meth r.params
+    | _ -> assert false
 
     method! on_notification_unhandled ~notify_back notif =
       match notif with
