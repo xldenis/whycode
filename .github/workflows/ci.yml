@@ -27,5 +27,5 @@ jobs:
           opam-pin: false
           opam-depext: false
         uses: ocaml/setup-ocaml@v2
-      - run: opam install . --deps-only
+      - run: opam install . --deps-only --locked
       - run: opam exec -- dune build
