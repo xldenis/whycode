@@ -13,7 +13,12 @@ jobs:
   build_server:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            code-target: linux-x64
+          - os: macos-latest
+            code-target: darwin-arm64
+    name: dist (${{ matrix.code-target }})
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -30,13 +35,14 @@ jobs:
         with:
           ocaml-compiler: 4.14.0
           dune-cache: true
+          cache-prefix: v1-${{ matrix.os }}
         env:
           OPAMLOCKED: locked
         uses: ocaml/setup-ocaml@v2
 
       - run: opam install . --deps-only --locked
 
-      - run: LINKING_MODE=static opam exec -- dune build
+      - run: LINKING_MODE=static opam exec -- dune build --profile=release
 
       - run: npm ci
         working-directory: ide
@@ -51,7 +57,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: dist-${{ matrix.target }}
+          name: dist-${{ matrix.code }}
           path: ./whycode-${{ matrix.code-target }}.vsix
 
   # publish:
