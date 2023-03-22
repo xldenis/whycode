@@ -11,6 +11,7 @@ license: "LGPL-2.1-or-later"
 homepage: "https://github.com/xldenis/whycode"
 bug-reports: "https://github.com/xldenis/whycode/issues"
 depends: [
+  "ocaml" { >= "4.14" }
   "dune" {>= "3.0"}
   "odoc" {with-doc}
   "why3"

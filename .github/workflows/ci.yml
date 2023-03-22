@@ -26,6 +26,8 @@ jobs:
           dune-cache: true
           opam-pin: false
           opam-depext: false
+        env:
+          OPAMLOCKED: locked
         uses: ocaml/setup-ocaml@v2
       - run: opam install . --deps-only --locked
       - run: opam exec -- dune build
