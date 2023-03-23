@@ -162,17 +162,17 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
 
     let serverPath = serverSetting;
 
-    if (serverPath == undefined) {
+    if (serverPath == undefined || serverSetting == "") {
         serverPath = Uri.joinPath(context.extensionUri, "whycode").fsPath;
     }
 
     let libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
-    if (libDir == undefined) {
+    if (libDir == undefined || serverSetting == "") {
         libDir = Uri.joinPath(context.extensionUri, "why-lib").fsPath;
     }
 
     let dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
-    if (dataDir == undefined) {
+    if (dataDir == undefined || serverSetting == "") {
         dataDir = Uri.joinPath(context.extensionUri, "why-data").fsPath;
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
