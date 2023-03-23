@@ -238,6 +238,16 @@ class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
   let config', env' = Whyconf.Args.initialize cli_opts (fun _ -> ()) usage_str in
+  (* Work around a why3 bug *)
+  let config' =
+    Whyconf.set_main config'
+      (Whyconf.set_libdir (Whyconf.get_main config') (Whyconf.libdir (Whyconf.get_main config')))
+  in
+  let config' =
+    Whyconf.set_main config'
+      (Whyconf.set_datadir (Whyconf.get_main config') (Whyconf.datadir (Whyconf.get_main config')))
+  in
+  let _ = Whyconf.load_plugins (Whyconf.get_main config') in
 
   object (self)
     inherit Linol_lwt.Jsonrpc2.server

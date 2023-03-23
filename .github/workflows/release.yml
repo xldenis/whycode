@@ -21,6 +21,13 @@ jobs:
     name: dist (${{ matrix.code-target }})
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Set patch version
+        run: |
+          if [[ $GITHUB_REF == 'refs/heads/release' ]]; then
+            echo "version=0.1" >> $GITHUB_ENV
+          else
+            echo "version=0.2" >> $GITHUB_ENV
+          fi
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -53,8 +60,21 @@ jobs:
           cp -R _opam/lib/why3 ide/why-lib
           cp -R _opam/share/why3 ide/why-data
 
+      - name: Set Version Number
+        run: |
+          echo "Preparing version: ${{env.version}}.${{github.run_number}}"
+          node -e "var p = require('./package.json'); console.log(JSON.stringify({...p, version: '${{ env.version }}.${{ github.run_number }}' }))" > ./package.nightly.json
+          mv package.nightly.json package.json
+        working-directory: ide
+
       - name: Package
         run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }}
+        if: github.ref == 'refs/heads/release'
+        working-directory: ide
+
+      - name: Package (Nightly)
+        run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }} --pre-release
+        if: github.ref != 'refs/heads/release'
         working-directory: ide
 
       - name: Upload artifacts
