@@ -54,7 +54,7 @@ jobs:
           cp -R _opam/share/why3 ide/why-data
 
       - name: Package
-        run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix"
+        run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }}
         working-directory: ide
 
       - name: Upload artifacts
