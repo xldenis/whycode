@@ -153,26 +153,20 @@ function buildCommands(): [string, (...args: any[]) => any][] {
 }
 
 async function startServer(context: ExtensionContext): Promise<LanguageClient> {
-    let serverSetting: string | undefined = vscode.workspace.getConfiguration("whycode").get("executablePath");
-    if (serverSetting == undefined || serverSetting == "") {
-        serverSetting = "whycode";
-    }
-
+    let serverPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("executablePath");
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 
-    let serverPath = serverSetting;
-
-    if (serverPath == undefined || serverSetting == "") {
+    if (serverPath == undefined || serverPath == "") {
         serverPath = Uri.joinPath(context.extensionUri, "whycode").fsPath;
     }
 
     let libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
-    if (libDir == undefined || serverSetting == "") {
+    if (libDir == undefined || libDir == "") {
         libDir = Uri.joinPath(context.extensionUri, "why-lib").fsPath;
     }
 
     let dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
-    if (dataDir == undefined || serverSetting == "") {
+    if (dataDir == undefined || dataDir == "") {
         dataDir = Uri.joinPath(context.extensionUri, "why-data").fsPath;
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

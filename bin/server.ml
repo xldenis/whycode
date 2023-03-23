@@ -223,10 +223,11 @@ let find_unproved_nodes_at (c : controller) (rng : Range.t) : Session_itp.proofN
 (* Publish a batch of diagnostics for a set of files *)
 let send_all_diags (notify_back : Jsonrpc2.notify_back)
     (diags : (string, Diagnostic.t list) Hashtbl.t) =
-  spawn (fun () ->
-      log_info notify_back
-        (Format.asprintf "sending %d tasks"
-           (Hashtbl.fold (fun _ l acc -> acc + List.length l) diags 0)));
+  let* _ =
+    log_info notify_back
+      (Format.asprintf "sending %d tasks"
+         (Hashtbl.fold (fun _ l acc -> acc + List.length l) diags 0))
+  in
   Hashtbl.fold
     (fun file diags lwt ->
       notify_back#set_uri (DocumentUri.of_path file);
@@ -303,7 +304,7 @@ class why_lsp_server () =
       let _, _ = Controller_itp.reload_files cont in
       self#publish_diagnostics notify_back (gather_diagnostics_list cont)
 
-    method private on_run_command_notif ~notify_back (n : RunTransformationRequest.t)
+    method private on_run_command_req ~notify_back (n : RunTransformationRequest.t)
         : Yojson.Safe.t t =
       try
         let open Wstdlib in
@@ -398,7 +399,7 @@ class why_lsp_server () =
         return ()
       with Not_found -> return ()
 
-    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id name req
+    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
         : Yojson.Safe.t t =
       let open Lsp.Import in
       let open Lwt.Infix in
@@ -409,7 +410,7 @@ class why_lsp_server () =
       match name with
       | "proof/runTransformation" -> begin
           let params = parse RunTransformationRequest.of_yojson req in
-          params >>= self#on_run_command_notif ~notify_back
+          params >>= self#on_run_command_req ~notify_back
         end
       | "proof/resetSession" -> begin
           let params = parse ResetSessionNotification.of_yojson req in
@@ -448,8 +449,6 @@ class why_lsp_server () =
     method! on_notification_unhandled ~notify_back notif =
       match notif with
       | Lsp.Client_notification.DidSaveTextDocument n -> self#on_did_save_notif ~notify_back n
+      | Lsp.Client_notification.UnknownNotification n -> self#on_unknown_notification ~notify_back n
       | _ -> return ()
-
-    (* TODO: Make this a request *)
-    method private on_run_command_req ~notify_back (n : RunTransformationRequest.t) = return ()
   end

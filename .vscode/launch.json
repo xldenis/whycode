@@ -7,8 +7,8 @@
 			"request": "launch",
 			"name": "Launch Client",
 			"runtimeExecutable": "${execPath}",
-			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
-			"outFiles": ["${workspaceRoot}/client/out/**/*.js"],
+			"args": ["--extensionDevelopmentPath=${workspaceRoot}/ide"],
+			"outFiles": ["${workspaceRoot}/ide/out/**/*.js"],
 			"preLaunchTask": "Build Extension"
 		},
 		{
