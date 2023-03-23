@@ -51,7 +51,7 @@ jobs:
         run: |
           cp _build/default/bin/main.exe ide/whycode
           cp -R _opam/lib/why3 ide/why-lib
-          cp -R _opam/share/why3 ide/why3-data
+          cp -R _opam/share/why3 ide/why-data
 
       - name: Package
         run: npx vsce package -o "../whycode-${{ matrix.code-target }}.vsix"
@@ -60,7 +60,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: dist-${{ matrix.code }}
+          name: dist-${{ matrix.code-target }}
           path: ./whycode-${{ matrix.code-target }}.vsix
 
   # publish:
