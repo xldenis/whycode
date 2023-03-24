@@ -1,5 +1,6 @@
 import { workspace, ExtensionContext, Range, Uri } from "vscode";
 import * as vscode from "vscode";
+import * as os from "os";
 
 import {
     DidChangeTextDocumentNotification,
@@ -169,6 +170,11 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     if (dataDir == undefined || dataDir == "") {
         dataDir = Uri.joinPath(context.extensionUri, "why-data").fsPath;
     }
+
+    let configPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("configPath");
+    if (configPath == undefined || configPath == "") {
+        configPath = os.homedir() + "/.why3.conf";
+    }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const serverArgs: string[] = vscode.workspace.getConfiguration("whycode").get("extraArgs")!;
 
@@ -183,6 +189,7 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     const env: Env = {
         WHY3LIB: libDir,
         WHY3DATA: dataDir,
+        WHY3CONFIG: configPath,
     };
 
     const run = {

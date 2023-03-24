@@ -58,6 +58,10 @@
           "type": "string",
           "description": "Specifies the path at which the Why3 DATADIR can be found"
         },
+        "whycode.configPath": {
+          "type": "string",
+          "description": "Specifies the path at which the Why3 config can be found"
+        },
         "whycode.extraArgs": {
           "type": "array",
           "description": "Extra arguments to provide Why3",
