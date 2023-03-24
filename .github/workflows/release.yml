@@ -139,5 +139,5 @@ jobs:
         run: npx ovsx publish --pat ${{ secrets.OPENVSX_TOKEN }} --packagePath ../dist/whycode-*.vsix
         timeout-minutes: 2
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      # - name: Release
+      #   uses: softprops/action-gh-release@v1
