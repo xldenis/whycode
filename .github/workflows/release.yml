@@ -126,7 +126,7 @@ jobs:
       - run: ls -al ./dist
 
       - run: npm ci
-        working-directory: ./editors/code
+        working-directory: ./ide
 
       - name: Publish Extension (Code Marketplace, nightly)
         if: github.ref != 'refs/heads/release' && ${{ needs.check_date.outputs.should_run != 'true' }}
