@@ -158,22 +158,24 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 
     if (serverPath == undefined || serverPath == "") {
-        serverPath = Uri.joinPath(context.extensionUri, "whycode").fsPath;
+        serverPath = process.env.DEBUG_SERVER_PATH || Uri.joinPath(context.extensionUri, "whycode").fsPath;
     }
 
-    let libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
-    if (libDir == undefined || libDir == "") {
-        libDir = Uri.joinPath(context.extensionUri, "why-lib").fsPath;
+    const env: Env = {};
+
+    const libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
+    if ((libDir == undefined || libDir == "") && !process.env.DEBUG_SERVER_PATH) {
+        env.WHY3LIB = Uri.joinPath(context.extensionUri, "why-lib").fsPath;
     }
 
-    let dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
-    if (dataDir == undefined || dataDir == "") {
-        dataDir = Uri.joinPath(context.extensionUri, "why-data").fsPath;
+    const dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
+    if ((dataDir == undefined || dataDir == "") && !process.env.DEBUG_SERVER_PATH) {
+        env.WHY3DATA = Uri.joinPath(context.extensionUri, "why-data").fsPath;
     }
 
-    let configPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("configPath");
+    const configPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("configPath");
     if (configPath == undefined || configPath == "") {
-        configPath = os.homedir() + "/.why3.conf";
+        env.WHY3CONFIG = os.homedir() + "/.why3.conf";
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const serverArgs: string[] = vscode.workspace.getConfiguration("whycode").get("extraArgs")!;
@@ -186,11 +188,6 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     // Otherwise the run options are used
     const outputChannel = vscode.window.createOutputChannel("WhyCode Server");
     const traceOutputChannel = vscode.window.createOutputChannel("Whycode Server Trace");
-    const env: Env = {
-        WHY3LIB: libDir,
-        WHY3DATA: dataDir,
-        WHY3CONFIG: configPath,
-    };
 
     const run = {
         command: serverPath,

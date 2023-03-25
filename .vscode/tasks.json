@@ -2,27 +2,49 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-		  "label": "Build Extension in Background",
-		  "group": "build",
-		  "type": "npm",
-		  "script": "watch",
-		  "path": "ide/",
-		  "problemMatcher": {
-			"base": "$tsc-watch",
-			"fileLocation": ["relative", "${workspaceFolder}/ide/"]
-		  },
-		  "isBackground": true,
+			"label": "Build Extension in Background",
+			"group": "build",
+			"type": "npm",
+			"script": "watch",
+			"path": "ide/",
+			"problemMatcher": {
+				"base": "$tsc-watch",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}/ide/"
+				]
+			},
+			"isBackground": true
 		},
 		{
-		  "label": "Build Extension",
-		  "group": "build",
-		  "type": "npm",
-		  "script": "build",
-		  "path": "ide/",
-		  "problemMatcher": {
-			"base": "$tsc",
-			"fileLocation": ["relative", "${workspaceFolder}/ide/"]
-		  },
+			"label": "Build Extension",
+			"group": "build",
+			"type": "npm",
+			"script": "build",
+			"path": "ide/",
+			"problemMatcher": {
+				"base": "$tsc",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}/ide/"
+				]
+			}
+		},
+		{
+			"type": "dune",
+			"problemMatcher": [
+				"$ocamlc"
+			],
+			"group": "build",
+			"label": "Build Server"
+		},
+		{
+			"label": "Build Server and Extension",
+			"dependsOn": [
+				"Build Server",
+				"Build Extension"
+			],
+			"problemMatcher":[ "$ocamlc", "$tsc" ]
 		},
 	]
 }
