@@ -31,8 +31,13 @@ jobs:
         include:
           - os: ubuntu-latest
             code-target: linux-x64
+
           - os: macos-latest
             code-target: darwin-arm64
+
+          - os: macos-latest
+            code-target: darwin-x64
+
     name: dist (${{ matrix.code-target }})
     runs-on: ${{ matrix.os }}
     steps:
@@ -129,12 +134,12 @@ jobs:
         working-directory: ./ide
 
       - name: Publish Extension (Code Marketplace, nightly)
-        if: github.ref != 'refs/heads/release' && ${{ needs.check_date.outputs.should_run != 'true' }}
+        if: github.ref != 'refs/heads/release' && needs.check_date.outputs.should_run != 'true'
         working-directory: ./ide
         run: npx vsce publish --pat ${{ secrets.MARKETPLACE_TOKEN }} --packagePath ../dist/whycode-*.vsix
 
       - name: Publish Extension (OpenVSX, nightly)
-        if: github.ref != 'refs/heads/release' && ${{ needs.check_date.outputs.should_run != 'true' }}
+        if: github.ref != 'refs/heads/release' && needs.check_date.outputs.should_run != 'true'
         working-directory: ./ide
         run: npx ovsx publish --pat ${{ secrets.OPENVSX_TOKEN }} --packagePath ../dist/whycode-*.vsix
         timeout-minutes: 2
