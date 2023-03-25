@@ -127,6 +127,15 @@ let run_strategy_on_goal c id strat ~notification ~finalize =
   in
   exec_strategy 0 [] strat id
 
+let add_file_to_session cont file =
+  let dir = Session_itp.get_dir cont.controller_session in
+  let fn = Sysutil.relativize_filename dir file in
+
+  try
+    let _ = Session_itp.find_file_from_path cont.controller_session fn in
+    ()
+  with Not_found -> if Sys.file_exists file then Controller_itp.add_file cont file
+
 module SessionManager = struct
   type manager = {
     path_to_id : (string, string) Hashtbl.t;
@@ -150,8 +159,7 @@ module SessionManager = struct
       let why_file =
         if Filename.check_suffix id "rs" then Filename.chop_suffix id "rs" ^ "mlcfg" else id
       in
-
-      Controller_itp.add_file cont why_file;
+      add_file_to_session cont why_file;
 
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
