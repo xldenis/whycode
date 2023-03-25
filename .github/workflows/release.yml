@@ -139,5 +139,17 @@ jobs:
         run: npx ovsx publish --pat ${{ secrets.OPENVSX_TOKEN }} --packagePath ../dist/whycode-*.vsix
         timeout-minutes: 2
 
+      - name: Publish Extension (Code Marketplace)
+        if: github.ref == 'refs/heads/release'
+        working-directory: ./ide
+        run: npx vsce publish --pat ${{ secrets.MARKETPLACE_TOKEN }} --packagePath ../dist/whycode-*.vsix
+
+      - name: Publish Extension (OpenVSX)
+        if: github.ref == 'refs/heads/release'
+        working-directory: ./ide
+        run: npx ovsx publish --pat ${{ secrets.OPENVSX_TOKEN }} --packagePath ../dist/whycode-*.vsix
+        timeout-minutes: 2
+
+      # - name: Release
       # - name: Release
       #   uses: softprops/action-gh-release@v1
