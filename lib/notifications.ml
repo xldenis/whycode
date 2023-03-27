@@ -5,18 +5,17 @@ let uri_of_yojson j =
 
 let uri_to_yojson j = Lsp.Types.DocumentUri.yojson_of_t j
 
+let range_of_yojson r =
+  try Ok (Lsp.Types.Range.t_of_yojson r) with _ -> Error "could not parse uri"
+
+(* improve parser to use json records instead *)
+type target = [ `Range of (Lsp.Types.Range.t[@of_yojson range_of_yojson]) | `Node of int ]
+[@@deriving of_yojson]
+
 module RunTransformationRequest = struct
-  let range_of_yojson r =
-    try Ok (Lsp.Types.Range.t_of_yojson r) with _ -> Error "could not parse uri"
-
-  (* improve parser to use json records instead *)
-  type target = [ `Range of (Lsp.Types.Range.t[@of_yojson range_of_yojson]) | `Node of int ]
-  [@@deriving of_yojson]
-
   type t = {
     command : string;
     target : target;
-    (* node : int option; *)
     uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson]
   }
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]
@@ -50,6 +49,11 @@ end
 
 module ReplaySessionNotification = struct
   type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson] }
+  [@@deriving of_yojson] [@@yojson.allow_extra_fields]
+end
+
+module ShowTaskRequest = struct
+  type t = { uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson] target : target }
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]
 end
 

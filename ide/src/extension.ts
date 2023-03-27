@@ -1,4 +1,4 @@
-import { workspace, ExtensionContext, Range, Uri } from "vscode";
+import { workspace, ExtensionContext, Range, Uri, window } from "vscode";
 import * as vscode from "vscode";
 import * as os from "os";
 
@@ -33,6 +33,22 @@ export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/star
 
 const trees: Map<string, TaskTree> = new Map();
 const proofDocs: Set<vscode.Uri> = new Set();
+
+class TaskProvider implements vscode.TextDocumentContentProvider {
+  static scheme = "tasks";
+
+  constructor(private client: LanguageClient) {}
+  async provideTextDocumentContent(uri: Uri): Promise<string> {
+      const target = JSON.parse(uri.query);
+      console.log(target, uri.query, Uri.file(uri.path));
+      const resp: string = await client.sendRequest("proof/showTask", {
+          uri: Uri.file(uri.path).toString(),
+          target,
+      });
+
+      return resp;
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildCommands(): [string, (...args: any[]) => any][] {
@@ -103,8 +119,24 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 client.sendRequest("proof/runTransformation", {
                     uri: uri,
                     target,
-                    command: command,
+                    command,
                 });
+            },
+        ],
+        [
+            "whycode.show_task",
+            async (uri: DocumentUri, node: number | Range) => {
+                let target;
+                if (typeof node == "number") {
+                    target = ["Node", node];
+                } else {
+                    target = ["Range", node];
+                }
+                const u = Uri.parse(uri);
+                console.log(u);
+                const uri2 = Uri.parse(`tasks:${u.path}?${JSON.stringify(target)}`);
+                // await workspace.openTextDocument(Uri.parse("tasks:omgomg.mlw"));
+                return workspace.openTextDocument(uri2).then((doc) => window.showTextDocument(doc));
             },
         ],
         [
@@ -289,6 +321,10 @@ export async function activate(context: ExtensionContext) {
     const client = await startServer(context);
     setupServerEvents();
     setupTaskTree(context);
+
+    const provider = new TaskProvider(client);
+
+    workspace.registerTextDocumentContentProvider(TaskProvider.scheme, provider);
 
     buildCommands().forEach(([name, command]) => {
         const disposable = vscode.commands.registerCommand(name, command);

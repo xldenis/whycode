@@ -187,7 +187,18 @@ class why_lsp_server () =
         in
         if List.length ids > 0 then
           let s = cont.controller_strategies in
-          let actions = Hstr.fold (fun s _ acc -> `Command (mk_command s c.range) :: acc) s [] in
+          let actions =
+            [
+              `Command
+                (Command.create ~title:"Show Task" ~command:"whycode.show_task"
+                   ~arguments:
+                     [ DocumentUri.yojson_of_t c.textDocument.uri; Range.yojson_of_t c.range ]
+                   ());
+            ]
+          in
+          let actions =
+            Hstr.fold (fun s _ acc -> `Command (mk_command s c.range) :: acc) s actions
+          in
           return (Some actions)
         else return None
       with Not_found -> return None
@@ -294,6 +305,17 @@ class why_lsp_server () =
         return ()
       with Not_found -> return ()
 
+    method private on_show_task ~notify_back:_ (req : ShowTaskRequest.t) =
+      let cont = SessionManager.find_controller manager (DocumentUri.to_path req.uri) in
+      let ids =
+        match req.target with
+        | `Node i -> [ Obj.magic i ]
+        | `Range r -> find_unproved_nodes_at cont r
+      in
+      let task, tables = Session_itp.get_task_name_table cont.controller_session (List.hd ids) in
+      let str = string_of_task task tables in
+      return (`String str)
+
     method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
         : Yojson.Safe.t t =
       let open Lsp.Import in
@@ -310,6 +332,10 @@ class why_lsp_server () =
       | "proof/resetSession" -> begin
           let params = parse ResetSessionNotification.of_yojson req in
           params >>= self#on_reset_session ~notify_back
+        end
+      | "proof/showTask" -> begin
+          let params = parse ShowTaskRequest.of_yojson req in
+          params >>= self#on_show_task ~notify_back
         end
       | _ -> failwith "Unhandled custom request"
 

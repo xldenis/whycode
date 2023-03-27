@@ -4,8 +4,7 @@
  (flags
   (:standard
    (:include linking-flags-fserv.sexp)))
- (libraries whycode why3 lsp linol linol-lwt uri lwt.unix)
- )
+ (libraries whycode why3 lsp linol linol-lwt uri lwt.unix))
 
 (rule
  (with-stdout-to

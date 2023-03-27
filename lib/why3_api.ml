@@ -3,6 +3,17 @@ module S = Sched.Lwt_S
 module C = Controller_itp.Make (S)
 open Controller_itp
 
+let string_of_task (task : Task.task) tables =
+  (* let task, tables = get_task_name_table d.cont.controller_session id in *)
+  let pr = tables.Trans.printer in
+  let apr = tables.Trans.aprinter in
+  let module P =
+    (val Pretty.create
+           ~print_ext_any:(fun id -> id)
+           ~do_forget_all:false ~shorten_axioms:true pr apr pr pr)
+  in
+  Pp.string_of P.print_task task
+
 let run_strategy_on_goal c id strat ~notification ~finalize =
   let open Strategy in
   let open Controller_itp in
