@@ -1,2 +1,6 @@
 (library
- (name whycode))
+ (name whycode)
+ (libraries why3 linol-lwt uri yojson lwt.unix ppx_deriving_yojson.runtime
+   ppx_deriving)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving_yojson)))

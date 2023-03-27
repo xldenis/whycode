@@ -4,10 +4,8 @@
  (flags
   (:standard
    (:include linking-flags-fserv.sexp)))
- (libraries whycode why3 lsp linol linol-lwt uri yojson lwt.unix threads
-   ppx_deriving_yojson.runtime ppx_deriving)
- (preprocess
-  (pps ppx_deriving.show ppx_deriving_yojson)))
+ (libraries whycode why3 lsp linol linol-lwt uri lwt.unix)
+ )
 
 (rule
  (with-stdout-to
