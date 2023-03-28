@@ -137,6 +137,7 @@ class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
   let config', env' = Whyconf.Args.initialize cli_opts (fun _ -> ()) usage_str in
+  let _ = Controller_itp.set_session_max_tasks (Whyconf.running_provers_max (Whyconf.get_main config')) in
 
   object (self)
     inherit Linol_lwt.Jsonrpc2.server

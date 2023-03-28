@@ -156,7 +156,7 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 client.sendNotification("proof/replay", {
                     uri: uri,
                 });
-
+ 
                 vscode.window.showInformationMessage("Session Reloaded");
             },
         ],
