@@ -12,9 +12,7 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onCommand:whycode.start"
-  ],
+  "activationEvents": [],
   "main": "./out/main.js",
   "contributes": {
     "commands": [
@@ -68,11 +66,24 @@
           "description": "Extra arguments to provide Why3",
           "default": []
         },
-        "whycode.maxNumberOfProblems": {
-          "scope": "resource",
-          "type": "number",
-          "default": 100,
-          "description": "Controls the maximum number of problems produced by the server."
+        "whycode.auto.finish": {
+          "type": "string",
+          "description": "A strategy to automatically apply to attempt and solve proof obligations",
+          "default": "Auto_level_0"
+        },
+        "whycode.auto.on": {
+          "type": "string",
+          "enum": [
+            "never",
+            "save"
+          ],
+          "default": "save",
+          "description": "When to apply automatic strategies"
+        },
+        "whycode.auto.start": {
+          "type": "string",
+          "description": "A strategy to automatically apply to fresh sessions",
+          "default": "Split_VC"
         },
         "whycode.trace.server": {
           "scope": "window",

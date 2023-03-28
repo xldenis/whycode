@@ -3,8 +3,6 @@ import * as vscode from "vscode";
 import * as os from "os";
 
 import {
-    DidChangeTextDocumentNotification,
-    DidCloseTextDocumentNotification,
     DocumentUri,
     LanguageClient,
     LanguageClientOptions,
@@ -12,10 +10,15 @@ import {
     RequestType,
     ServerOptions,
 } from "vscode-languageclient/node";
-import { createConverter } from "vscode-languageclient/lib/common/codeConverter";
 import { TaskDataProvider, TaskNode, TaskTree } from "./tree";
 
 let client: LanguageClient;
+
+const languages = [
+    { scheme: "file", language: "rust" },
+    { scheme: "file", language: "mlcfg" },
+    { scheme: "file", language: "why3" },
+];
 
 interface ResolveSessionParams {
   uri: DocumentUri;
@@ -32,7 +35,6 @@ export const resolve = new RequestType<ResolveSessionParams, ResolveSessionRespo
 export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/start");
 
 const trees: Map<string, TaskTree> = new Map();
-const proofDocs: Set<vscode.Uri> = new Set();
 
 class TaskProvider implements vscode.TextDocumentContentProvider {
   static scheme = "tasks";
@@ -47,6 +49,59 @@ class TaskProvider implements vscode.TextDocumentContentProvider {
       });
 
       return resp;
+  }
+}
+
+class Config {
+  private extensionUri: Uri;
+
+  constructor(context: ExtensionContext) {
+      this.extensionUri = context.extensionUri;
+  }
+
+  public serverPath(): string {
+      const serverPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("executablePath");
+      if (serverPath == undefined || serverPath == "") {
+          return process.env.DEBUG_SERVER_PATH || Uri.joinPath(this.extensionUri, "whycode").fsPath;
+      }
+      return serverPath;
+  }
+
+  public env(): Env {
+      const env: Env = {};
+
+      const libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
+      if ((libDir == undefined || libDir == "") && !process.env.DEBUG_SERVER_PATH) {
+          env.WHY3LIB = Uri.joinPath(this.extensionUri, "why-lib").fsPath;
+      }
+
+      const dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
+      if ((dataDir == undefined || dataDir == "") && !process.env.DEBUG_SERVER_PATH) {
+          env.WHY3DATA = Uri.joinPath(this.extensionUri, "why-data").fsPath;
+      }
+
+      const configPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("configPath");
+      if (configPath == undefined || configPath == "") {
+          env.WHY3CONFIG = os.homedir() + "/.why3.conf";
+      }
+
+      return env;
+  }
+
+  public serverArgs(): string[] {
+      return vscode.workspace.getConfiguration("whycode").get("extraArgs") || [];
+  }
+
+  public autoStrategyStart(): string | undefined {
+      return vscode.workspace.getConfiguration("whycode").get("auto.start");
+  }
+
+  public autoStrategyFinish(): string | undefined {
+      return vscode.workspace.getConfiguration("whycode").get("auto.finish");
+  }
+
+  public doAuto(): string | undefined {
+      return vscode.workspace.getConfiguration("whycode").get("auto.on");
   }
 }
 
@@ -84,7 +139,7 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 }
                 console.log(uri);
                 client.sendNotification("proof/reload", {
-                    uri: uri,
+                    uri,
                 });
 
                 vscode.window.showInformationMessage("Session Reloaded");
@@ -97,10 +152,9 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 if (uri == undefined) {
                     return;
                 }
-                console.log(uri);
+
                 client.sendNotification("proof/replay", {
                     uri: uri,
-                    dummy: true,
                 });
 
                 vscode.window.showInformationMessage("Session Reloaded");
@@ -109,15 +163,16 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         [
             "whycode.run_transformation",
             (uri: DocumentUri, node: number | Range, command: string) => {
+                // console.log(uri, JSON.stringify(node), command);
                 let target;
                 if (typeof node == "number") {
                     target = ["Node", node];
                 } else {
-                    target = ["Range", node];
+                    target = ["Range", { start: node.start, end: node.end }];
                 }
 
                 client.sendRequest("proof/runTransformation", {
-                    uri: uri,
+                    uri,
                     target,
                     command,
                 });
@@ -133,7 +188,6 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                     target = ["Range", node];
                 }
                 const u = Uri.parse(uri);
-                console.log(u);
                 const uri2 = Uri.parse(`tasks:${u.path}?${JSON.stringify(target)}`);
                 // await workspace.openTextDocument(Uri.parse("tasks:omgomg.mlw"));
                 return workspace.openTextDocument(uri2).then((doc) => window.showTextDocument(doc));
@@ -185,39 +239,11 @@ function buildCommands(): [string, (...args: any[]) => any][] {
     ];
 }
 
-async function startServer(context: ExtensionContext): Promise<LanguageClient> {
-    let serverPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("executablePath");
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+async function startServer(config: Config, context: ExtensionContext): Promise<LanguageClient> {
+    const serverPath = config.serverPath();
+    const env: Env = config.env();
+    const serverArgs = config.serverArgs();
 
-    if (serverPath == undefined || serverPath == "") {
-        serverPath = process.env.DEBUG_SERVER_PATH || Uri.joinPath(context.extensionUri, "whycode").fsPath;
-    }
-
-    const env: Env = {};
-
-    const libDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("libPath");
-    if ((libDir == undefined || libDir == "") && !process.env.DEBUG_SERVER_PATH) {
-        env.WHY3LIB = Uri.joinPath(context.extensionUri, "why-lib").fsPath;
-    }
-
-    const dataDir: string | undefined = vscode.workspace.getConfiguration("whycode").get("dataPath");
-    if ((dataDir == undefined || dataDir == "") && !process.env.DEBUG_SERVER_PATH) {
-        env.WHY3DATA = Uri.joinPath(context.extensionUri, "why-data").fsPath;
-    }
-
-    const configPath: string | undefined = vscode.workspace.getConfiguration("whycode").get("configPath");
-    if (configPath == undefined || configPath == "") {
-        env.WHY3CONFIG = os.homedir() + "/.why3.conf";
-    }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const serverArgs: string[] = vscode.workspace.getConfiguration("whycode").get("extraArgs")!;
-
-    // The debug options for the server
-    // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
-    // const debugOptions = { execArgv: ["--nolazy", "--inspect=6009"] };
-
-    // If the extension is launched in debug mode then the debug server options are used
-    // Otherwise the run options are used
     const outputChannel = vscode.window.createOutputChannel("WhyCode Server");
     const traceOutputChannel = vscode.window.createOutputChannel("Whycode Server Trace");
 
@@ -237,11 +263,7 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     const clientOptions: LanguageClientOptions = {
         outputChannel,
         traceOutputChannel,
-        documentSelector: [
-            { scheme: "file", language: "rust" },
-            { scheme: "file", language: "mlcfg" },
-            { scheme: "file", language: "why3" },
-        ],
+        documentSelector: languages,
         synchronize: {},
     };
 
@@ -252,7 +274,26 @@ async function startServer(context: ExtensionContext): Promise<LanguageClient> {
     return client;
 }
 
-function setupServerEvents() {
+function setupServerEvents(config: Config) {
+    workspace.onDidSaveTextDocument((event) => {
+        if (!config.doAuto()) {
+            return;
+        }
+
+        const strat = config.autoStrategyFinish();
+
+        if (strat == undefined || strat == "") {
+            return;
+        }
+
+        if (vscode.languages.match(languages, event)) {
+            const diagnostics = vscode.languages.getDiagnostics(event.uri);
+
+            diagnostics.forEach((diag) => {
+                vscode.commands.executeCommand("whycode.run_transformation", event.uri.toString(), diag.range, strat);
+            });
+        }
+    });
     // workspace.onDidChangeTextDocument((event) => {
     //     if (event.contentChanges.length === 0) {
     //         return;
@@ -317,9 +358,10 @@ function setupTaskTree(context: ExtensionContext) {
 
 export async function activate(context: ExtensionContext) {
     vscode.window.showInformationMessage("Whycode loaded");
+    const config = new Config(context);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const client = await startServer(context);
-    setupServerEvents();
+    client = await startServer(config, context);
+    setupServerEvents(config);
     setupTaskTree(context);
 
     const provider = new TaskProvider(client);
