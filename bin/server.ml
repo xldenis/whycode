@@ -93,7 +93,11 @@ let gather_diagnostics_list (c : controller) : (string, Diagnostic.t list) Hasht
       let location = get_goal_loc task in
       let file, _, _, _, _ = Loc.get location in
       let file = relativize (get_dir session) file in
-      let diag = error location (get_proof_expl session id) in
+      let msg = get_proof_expl session id in
+      let msg = if msg = "" then
+        (get_proof_name session id).id_string
+      else msg in
+      let diag = error location msg in
       let old = Option.value ~default:[] (Hashtbl.find_opt tbl file) in
       Hashtbl.replace tbl file (diag :: old))
     (unproved_leaf_nodes c);
@@ -262,18 +266,23 @@ class why_lsp_server () =
         return ()
       with Not_found -> return ()
 
+
     method private publish_diagnostics notify (diags : (string, Diagnostic.t list) Hashtbl.t) =
+      (* Figure out if we had diagnostics for a file which we no longer have any for *)
       let cleared =
         Hashtbl.fold
           (fun s _ acc -> if not (Hashtbl.mem diags s) then s :: acc else acc)
           outstanding_diag []
       in
+      (* diags = outstanding *)
       let outstanding = Hashtbl.of_seq (Hashtbl.to_seq diags |> Seq.map (fun (s, _) -> (s, ()))) in
 
-      let* _ = send_all_diags notify diags in
+      (* Clear diagnostics for any files which have been solved *)
       let* _ =
         send_all_diags notify (List.map (fun s -> (s, [])) cleared |> List.to_seq |> Hashtbl.of_seq)
       in
+      (* Send the outstanding diagnostics *)
+      let* _ = send_all_diags notify diags in
       outstanding_diag <- outstanding;
       return ()
 
