@@ -3,6 +3,7 @@ open Why3
 open Whycode.Notifications
 open Whycode.Why3_api
 open Controller_itp
+open Whycode
 
 let warn loc message =
   Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Warning ~source:"Why3" ~message
@@ -24,9 +25,11 @@ let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
 (* Custom strategy runner with a final callback *)
 
 module SessionManager = struct
+  open Whycode.Controller
+
   type manager = {
     path_to_id : (string, string) Hashtbl.t;
-    id_to_controller : (string, controller) Hashtbl.t;
+    id_to_controller : (string, Whycode.Controller.controller) Hashtbl.t;
   }
 
   let create () : manager = { path_to_id = Hashtbl.create 32; id_to_controller = Hashtbl.create 32 }
@@ -36,17 +39,8 @@ module SessionManager = struct
       let session = Hashtbl.find m.path_to_id id in
       Hashtbl.find m.id_to_controller session
     with Not_found ->
-      let files = Queue.create () in
-      Queue.push id files;
-      let dir = Server_utils.get_session_dir ~allow_mkdir:true files in
-      let ses = Session_itp.load_session dir in
-      let cont = Controller_itp.create_controller config env ses in
-      Server_utils.load_strategies cont;
-      (* HACK: add mlcfg *)
-      let why_file =
-        if Filename.check_suffix id "rs" then Filename.chop_suffix id "rs" ^ "mlcfg" else id
-      in
-      add_file_to_session cont why_file;
+
+      let (cont, dir) = Whycode.Controller.from_file ~mkdir:true id in
 
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
@@ -71,21 +65,12 @@ let get_goal_loc (task : Task.task) : Loc.position =
 
   location
 
-let unproved_leaf_nodes (c : controller) : Session_itp.proofNodeID list =
-  let open Session_itp in
-  let session = c.controller_session in
-  Session_itp.fold_all_session session
-    (fun acc any ->
-      match any with
-      | Session_itp.APn id ->
-          if get_transformations session id = [] && not (pn_proved session id) then id :: acc
-          else acc
-      | _ -> acc)
-    []
+let unproved_leaf_nodes c = Whycode.Controller.unproved_tasks c
 
-let gather_diagnostics_list (c : controller) : (string, Diagnostic.t list) Hashtbl.t =
+let gather_diagnostics_list (c : Whycode.Controller.controller) : (string, Diagnostic.t list) Hashtbl.t =
+  let open Whycode in
   let open Session_itp in
-  let session = c.controller_session in
+  let session = Controller.session c in
   let tbl = Hashtbl.create 17 in
   List.iter
     (fun id ->
@@ -103,9 +88,9 @@ let gather_diagnostics_list (c : controller) : (string, Diagnostic.t list) Hasht
     (unproved_leaf_nodes c);
   tbl
 
-let find_unproved_nodes_at (c : controller) (rng : Range.t) : Session_itp.proofNodeID list =
+let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Session_itp.proofNodeID list =
   let open Session_itp in
-  let session = c.controller_session in
+  let session = Controller.session c in
 
   List.filter
     (fun id ->
@@ -118,6 +103,31 @@ let find_unproved_nodes_at (c : controller) (rng : Range.t) : Session_itp.proofN
         && c1 <= rng.start.character && rng.end_.character <= c2
       else false)
     (unproved_leaf_nodes c)
+
+type tree_node = { status: bool; name: string; parent: int option; id: int }
+
+let get_any_name (s : Session_itp.session) (a : Session_itp.any) =
+  match a with
+| Session_itp.AFile f -> "" (* TODO *)
+| Session_itp.ATh th -> (Session_itp.theory_name th).id_string
+| Session_itp.ATn tn -> Session_itp.get_transf_name s tn
+| Session_itp.APn pn -> (Session_itp.get_proof_name s pn).id_string
+| Session_itp.APa pa ->
+  let prover = (Session_itp.get_proof_attempt_node s pa).prover
+  in
+  prover.prover_name ^ prover.prover_version
+
+(* let any_to_tree_node (s : Session_itp.session) (a : Session_itp.any) : tree_node =
+  let parent = Session_itp.get_any_parent s a in
+  let name = get_any_name s a in
+
+  { status = Session_itp.any_proved s a; name ; parent; id =  }
+ *)
+let get_task_tree (c : controller) : unit list =
+  let session = c.controller_session in
+  Session_itp.fold_all_session session (fun acc any ->
+    []
+  ) []
 
 (* Publish a batch of diagnostics for a set of files *)
 let send_all_diags (notify_back : Jsonrpc2.notify_back)
@@ -153,7 +163,7 @@ class why_lsp_server () =
         (uri : Lsp.Types.DocumentUri.t) (_contents : string) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path uri) in
-        let _, _ = Controller_itp.reload_files cont in
+        let _ = Whycode.Controller.reload cont in
         self#publish_diagnostics notify_back (gather_diagnostics_list cont)
       with
       | Controller_itp.Errors_list _ ->
@@ -191,7 +201,7 @@ class why_lsp_server () =
             ()
         in
         if List.length ids > 0 then
-          let s = cont.controller_strategies in
+          let s = Controller.strategies cont in
           let actions =
             [
               `Command
@@ -202,7 +212,7 @@ class why_lsp_server () =
             ]
           in
           let actions =
-            Hstr.fold (fun s _ acc -> `Command (mk_command s c.range) :: acc) s actions
+            List.fold_right (fun s acc -> `Command (mk_command s c.range) :: acc) s actions
           in
           return (Some actions)
         else return None
@@ -212,7 +222,7 @@ class why_lsp_server () =
       let cont =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
-      let _, _ = Controller_itp.reload_files cont in
+      let _ = Controller.reload cont in
       self#publish_diagnostics notify_back (gather_diagnostics_list cont)
 
     method private on_run_command_req ~notify_back (n : RunTransformationRequest.t)
@@ -222,8 +232,8 @@ class why_lsp_server () =
         let* _ = log_info notify_back "Running command" in
         let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
 
-        let* _, _, _, strat =
-          try return (Hstr.find cont.controller_strategies n.command)
+        let* strat =
+          try return (List.find (fun s -> s = n.command) (Controller.strategies cont) )
           with Not_found -> failwith (Format.sprintf "Could not find strategy: %s" n.command)
         in
         let ids =
@@ -231,22 +241,12 @@ class why_lsp_server () =
           | `Range r -> find_unproved_nodes_at cont r
           | `Node i -> [ Obj.magic i ]
         in
-        let ids =
-          List.map
-            (fun id ->
-              let promise, resolver = Lwt.wait () in
-              ((id, resolver), promise))
-            ids
+
+        let promises = List.map
+          (fun id ->
+            Controller.run_strategy cont strat id)
+          ids
         in
-        let ids, promises = List.split ids in
-        List.iter
-          (fun (id, resolver) ->
-            run_strategy_on_goal cont id
-              (* EVIL EVIL EVIL: Use a hashmap to convert from proofNodeID to int (sadly, probably just the identity function but oh well *)
-              strat
-              ~notification:(fun _ -> ())
-              ~finalize:(fun _ -> Lwt.wakeup resolver ()))
-          ids;
 
         let* _ = log_info notify_back "Waiting on..." in
         let* _ = Lwt.join promises in
@@ -263,7 +263,7 @@ class why_lsp_server () =
           SessionManager.find_controller manager (DocumentUri.to_path n.textDocument.uri)
         in
         let* _ = log_info notify_back "Saving session" in
-        Session_itp.save_session cont.controller_session;
+        Controller.save cont;
         return ()
       with Not_found -> return ()
 
@@ -290,7 +290,7 @@ class why_lsp_server () =
     method private on_reset_session ~notify_back (reset : ResetSessionNotification.t) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
-        C.reset_proofs cont ~notification:(fun _ -> ()) ~removed:(fun _ -> ()) None;
+        Controller.reset cont;
         let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
         return `Null
       with Not_found -> return `Null
@@ -298,7 +298,7 @@ class why_lsp_server () =
     method private on_reload_session ~notify_back (reset : ReloadSessionNotification.t) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
-        let _, _ = Controller_itp.reload_files cont in
+        let _ = Controller.reload cont in
         let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
         return ()
       with Not_found -> return ()
@@ -306,11 +306,7 @@ class why_lsp_server () =
     method private on_replay_session ~notify_back (reset : ReplaySessionNotification.t) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
-        C.replay ~valid_only:true ~obsolete_only:true cont
-          ~callback:(fun _ _ -> ())
-          ~notification:(fun _ -> ())
-          ~final_callback:(fun _ _ -> ())
-          ~any:None;
+        let* _ = Controller.replay cont in
         let* _ = self#publish_diagnostics notify_back (gather_diagnostics_list cont) in
         return ()
       with Not_found -> return ()
@@ -322,7 +318,7 @@ class why_lsp_server () =
         | `Node i -> [ Obj.magic i ]
         | `Range r -> find_unproved_nodes_at cont r
       in
-      let task, tables = Session_itp.get_task_name_table cont.controller_session (List.hd ids) in
+      let task, tables = Session_itp.get_task_name_table (Controller.session cont) (List.hd ids) in
       let str = string_of_task task tables in
       return (`String str)
 

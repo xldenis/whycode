@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"http://why3.lri.fr/why3session.dtd">
+<why3session shape_version="6">
+<file format="whyml">
+<path name=".."/><path name="count.mlw"/>
+<theory name="Top">
+ <goal name="count&#39;vc" expl="VC for count">
+ <transf name="split_vc" >
+  <goal name="count&#39;vc.0" expl="integer overflow">
+  </goal>
+  <goal name="count&#39;vc.1" expl="loop variant decrease">
+  </goal>
+ </transf>
+ </goal>
+ <goal name="x&#39;vc" expl="VC for x">
+ </goal>
+</theory>
+</file>
+</why3session>
