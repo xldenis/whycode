@@ -10,7 +10,7 @@ import {
     RequestType,
     ServerOptions,
 } from "vscode-languageclient/node";
-import { TaskDataProvider, TaskNode, TaskTree } from "./tree";
+import { TaskDataProvider, TaskNode, TaskTree, treeElem } from "./tree";
 
 let client: LanguageClient;
 
@@ -33,6 +33,8 @@ export const resolve = new RequestType<ResolveSessionParams, ResolveSessionRespo
     "proof/resolveSesion"
 );
 export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/start");
+
+export const publishTree = new NotificationType<{ uri: DocumentUri; elems: treeElem[] }>("proof/publishTree");
 
 const trees: Map<string, TaskTree> = new Map();
 
@@ -108,18 +110,18 @@ class Config {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildCommands(): [string, (...args: any[]) => any][] {
     return [
-        [
-            "whycode.task_tree.run_auto_0",
-            (task: TaskNode) => {
-                vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Auto_level_0");
-            },
-        ],
-        [
-            "whycode.task_tree.split_vc",
-            (task: TaskNode) => {
-                vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Split_VC");
-            },
-        ],
+    // [
+    //     "whycode.task_tree.run_auto_0",
+    //     (task: TaskNode) => {
+    //         vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Auto_level_0");
+    //     },
+    // ],
+    // [
+    //     "whycode.task_tree.split_vc",
+    //     (task: TaskNode) => {
+    //         vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Split_VC");
+    //     },
+    // ],
         [
             "whycode.reset_session",
             () => {
@@ -156,7 +158,7 @@ function buildCommands(): [string, (...args: any[]) => any][] {
                 client.sendNotification("proof/replay", {
                     uri: uri,
                 });
- 
+
                 vscode.window.showInformationMessage("Session Reloaded");
             },
         ],
@@ -244,6 +246,7 @@ async function startServer(config: Config, context: ExtensionContext): Promise<L
     const env: Env = config.env();
     const serverArgs = config.serverArgs();
 
+    env.OCAMLRUNPARAM = "b";
     const outputChannel = vscode.window.createOutputChannel("WhyCode Server");
     const traceOutputChannel = vscode.window.createOutputChannel("Whycode Server Trace");
 
@@ -317,13 +320,24 @@ function setupServerEvents(config: Config) {
     // });
 }
 
-function setupTaskTree(context: ExtensionContext) {
+function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
     const treeDataProvider = new TaskDataProvider(new TaskTree());
 
     const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView("taskTree", {
         treeDataProvider,
     });
     context.subscriptions.push(view);
+
+    client.onNotification(publishTree, (notif) => {
+        let tasks = trees.get(notif.uri);
+        if (tasks == undefined) {
+            tasks = new TaskTree();
+            trees.set(notif.uri, tasks);
+        }
+        tasks.fromElems(notif.elems);
+        treeDataProvider.tree = trees.get(notif.uri)!;
+        treeDataProvider.refresh();
+    });
 
     const focusOnTree = function (id: string) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -361,8 +375,9 @@ export async function activate(context: ExtensionContext) {
     const config = new Config(context);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     client = await startServer(config, context);
+
     setupServerEvents(config);
-    setupTaskTree(context);
+    setupTaskTree(context, client);
 
     const provider = new TaskProvider(client);
 

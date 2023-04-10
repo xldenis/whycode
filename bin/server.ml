@@ -39,8 +39,7 @@ module SessionManager = struct
       let session = Hashtbl.find m.path_to_id id in
       Hashtbl.find m.id_to_controller session
     with Not_found ->
-
-      let (cont, dir) = Whycode.Controller.from_file ~mkdir:true id in
+      let cont, dir = Whycode.Controller.from_file config env ~mkdir:true id in
 
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
@@ -67,36 +66,32 @@ let get_goal_loc (task : Task.task) : Loc.position =
 
 let unproved_leaf_nodes c = Whycode.Controller.unproved_tasks c
 
-let gather_diagnostics_list (c : Whycode.Controller.controller) : (string, Diagnostic.t list) Hashtbl.t =
+let gather_diagnostics_list (c : Whycode.Controller.controller) :
+    (string, Diagnostic.t list) Hashtbl.t =
   let open Whycode in
   let open Session_itp in
   let session = Controller.session c in
   let tbl = Hashtbl.create 17 in
   List.iter
     (fun id ->
-      let task = get_task session id in
-      let location = get_goal_loc task in
+      let task = Controller.task c id in
+      let location = task.loc in
       let file, _, _, _, _ = Loc.get location in
       let file = relativize (get_dir session) file in
-      let msg = get_proof_expl session id in
-      let msg = if msg = "" then
-        (get_proof_name session id).id_string
-      else msg in
+      let msg = task.expl in
       let diag = error location msg in
       let old = Option.value ~default:[] (Hashtbl.find_opt tbl file) in
       Hashtbl.replace tbl file (diag :: old))
     (unproved_leaf_nodes c);
   tbl
 
-let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Session_itp.proofNodeID list =
+let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Controller.id list =
   let open Session_itp in
-  let session = Controller.session c in
-
   List.filter
     (fun id ->
-      if not (pn_proved session id) then
-        let task = get_task session id in
-        let location = get_goal_loc task in
+      let task = Controller.task c id in
+      if not task.proved then
+        let location = task.loc in
         let _, l1, c1, l2, c2 = Loc.get location in
         rng.start.line + 1 = l1
         && rng.end_.line + 1 = l2
@@ -104,31 +99,28 @@ let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Session
       else false)
     (unproved_leaf_nodes c)
 
-type tree_node = { status: bool; name: string; parent: int option; id: int }
+type tree_node = { status : bool; name : string; parent : int option; id : int }
 
 let get_any_name (s : Session_itp.session) (a : Session_itp.any) =
   match a with
-| Session_itp.AFile f -> "" (* TODO *)
-| Session_itp.ATh th -> (Session_itp.theory_name th).id_string
-| Session_itp.ATn tn -> Session_itp.get_transf_name s tn
-| Session_itp.APn pn -> (Session_itp.get_proof_name s pn).id_string
-| Session_itp.APa pa ->
-  let prover = (Session_itp.get_proof_attempt_node s pa).prover
-  in
-  prover.prover_name ^ prover.prover_version
+  | Session_itp.AFile f -> "" (* TODO *)
+  | Session_itp.ATh th -> (Session_itp.theory_name th).id_string
+  | Session_itp.ATn tn -> Session_itp.get_transf_name s tn
+  | Session_itp.APn pn -> (Session_itp.get_proof_name s pn).id_string
+  | Session_itp.APa pa ->
+      let prover = (Session_itp.get_proof_attempt_node s pa).prover in
+      prover.prover_name ^ prover.prover_version
 
 (* let any_to_tree_node (s : Session_itp.session) (a : Session_itp.any) : tree_node =
-  let parent = Session_itp.get_any_parent s a in
-  let name = get_any_name s a in
+   let parent = Session_itp.get_any_parent s a in
+   let name = get_any_name s a in
 
-  { status = Session_itp.any_proved s a; name ; parent; id =  }
- *)
-let get_task_tree (c : controller) : unit list =
-  let session = c.controller_session in
-  Session_itp.fold_all_session session (fun acc any ->
-    []
-  ) []
-
+   { status = Session_itp.any_proved s a; name ; parent; id =  }
+*)
+(* let get_task_tree (c : controller) : unit list =
+   let session = c.controller_session in
+   Session_itp.fold_all_session session (fun acc any -> []) []
+*)
 (* Publish a batch of diagnostics for a set of files *)
 let send_all_diags (notify_back : Jsonrpc2.notify_back)
     (diags : (string, Diagnostic.t list) Hashtbl.t) =
@@ -147,7 +139,9 @@ class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
   let config', env' = Whyconf.Args.initialize cli_opts (fun _ -> ()) usage_str in
-  let _ = Controller_itp.set_session_max_tasks (Whyconf.running_provers_max (Whyconf.get_main config')) in
+  let _ =
+    Controller_itp.set_session_max_tasks (Whyconf.running_provers_max (Whyconf.get_main config'))
+  in
 
   object (self)
     inherit Linol_lwt.Jsonrpc2.server
@@ -193,7 +187,6 @@ class why_lsp_server () =
         in
         let ids = find_unproved_nodes_at cont c.range in
 
-        let open Wstdlib in
         let mk_command trans id =
           Command.create ~title:trans ~command:"whycode.run_transformation"
             ~arguments:
@@ -223,30 +216,29 @@ class why_lsp_server () =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
       let _ = Controller.reload cont in
+
+      let tree = Controller.tree_as_list cont in
+      let notif = PublishTreeNotification.{ uri = n.uri; elems = tree } in
+      let params = PublishTreeNotification.to_yojson notif |> Jsonrpc.Structured.t_of_yojson in
+      let* _ =
+        notify_back#send_notification
+          (Lsp.Server_notification.UnknownNotification
+             { method_ = "proof/publishTree"; params = Some params })
+      in
+
       self#publish_diagnostics notify_back (gather_diagnostics_list cont)
 
     method private on_run_command_req ~notify_back (n : RunTransformationRequest.t)
         : Yojson.Safe.t t =
       try
-        let open Wstdlib in
         let* _ = log_info notify_back "Running command" in
         let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
 
-        let* strat =
-          try return (List.find (fun s -> s = n.command) (Controller.strategies cont) )
-          with Not_found -> failwith (Format.sprintf "Could not find strategy: %s" n.command)
-        in
         let ids =
-          match n.target with
-          | `Range r -> find_unproved_nodes_at cont r
-          | `Node i -> [ Obj.magic i ]
+          match n.target with `Range r -> find_unproved_nodes_at cont r | `Node i -> [ i ]
         in
 
-        let promises = List.map
-          (fun id ->
-            Controller.run_strategy cont strat id)
-          ids
-        in
+        let promises = List.map (fun id -> Controller.run_strategy cont n.command id) ids in
 
         let* _ = log_info notify_back "Waiting on..." in
         let* _ = Lwt.join promises in
@@ -266,7 +258,6 @@ class why_lsp_server () =
         Controller.save cont;
         return ()
       with Not_found -> return ()
-
 
     method private publish_diagnostics notify (diags : (string, Diagnostic.t list) Hashtbl.t) =
       (* Figure out if we had diagnostics for a file which we no longer have any for *)
@@ -314,12 +305,9 @@ class why_lsp_server () =
     method private on_show_task ~notify_back:_ (req : ShowTaskRequest.t) =
       let cont = SessionManager.find_controller manager (DocumentUri.to_path req.uri) in
       let ids =
-        match req.target with
-        | `Node i -> [ Obj.magic i ]
-        | `Range r -> find_unproved_nodes_at cont r
+        match req.target with `Node i -> [ i ] | `Range r -> find_unproved_nodes_at cont r
       in
-      let task, tables = Session_itp.get_task_name_table (Controller.session cont) (List.hd ids) in
-      let str = string_of_task task tables in
+      let str = Controller.task_body cont (List.hd ids) in
       return (`String str)
 
     method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
