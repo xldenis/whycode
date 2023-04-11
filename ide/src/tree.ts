@@ -71,17 +71,15 @@ export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
 
       let state: vscode.TreeItemCollapsibleState;
 
-      state = vscode.TreeItemCollapsibleState.None;
-
-      // if (element.children.length > 0) {
-      //     if (element.proved) {
-      //         state = vscode.TreeItemCollapsibleState.Collapsed;
-      //     } else {
-      //         state = vscode.TreeItemCollapsibleState.Expanded;
-      //     }
-      // } else {
-      //     state = vscode.TreeItemCollapsibleState.None;
-      // }
+      if ((this.tree.children.get(element.id) || new Set()).size > 0) {
+          if (element.proved) {
+              state = vscode.TreeItemCollapsibleState.Collapsed;
+          } else {
+              state = vscode.TreeItemCollapsibleState.Expanded;
+          }
+      } else {
+          state = vscode.TreeItemCollapsibleState.None;
+      }
 
       return {
           label: element.expl,

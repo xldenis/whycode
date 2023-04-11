@@ -1,4 +1,5 @@
 open Why3
+open Session_itp
 
 type controller
 type id = int
@@ -20,5 +21,5 @@ val task_body : controller -> id -> string
 type tree_elem = { expl : string; proved : bool; id : id; parent : id option }
 [@@deriving to_yojson]
 
-val tree_as_list : controller -> tree_elem list
+val file_tree_as_list : controller -> (file * tree_elem list) list
 val from_file : mkdir:bool -> Whyconf.config -> Env.env -> string -> controller * string

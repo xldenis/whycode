@@ -144,23 +144,35 @@ let task_body c id =
 type tree_elem = { expl : string; proved : bool; id : id; parent : id option }
 [@@deriving to_yojson]
 
-let tree_as_list (c : controller) : tree_elem list =
+let any_to_elem c session any =
+  let id = id_from_any c any in
+  let parent = Option.map (id_from_any c) (Session_itp.get_any_parent session any) in
+  let proved = Session_itp.any_proved c.controller.controller_session any in
+  let expl =
+    match any with
+    | AFile _ -> "File (TODO)"
+    | ATh th -> (theory_name th).id_string
+    | ATn _ -> "Transformation"
+    | APn _ -> (task c id).expl
+    | APa _ -> "Attempt"
+  in
+  { id; parent; proved; expl }
+
+let file_tree_as_list (c : controller) : (file * tree_elem list) list =
   let session = session c in
-  Session_itp.fold_all_session session
-    (fun acc any ->
-      let id = id_from_any c any in
-      let parent = Option.map (id_from_any c) (Session_itp.get_any_parent session any) in
-      let proved = Session_itp.any_proved c.controller.controller_session any in
-      let expl =
-        match any with
-        | AFile _ -> "File (TODO)"
-        | ATh th -> "Theory"
-        | ATn _ -> "Transformation"
-        | APn _ -> (task c id).expl
-        | APa _ -> "Attempt"
+  let files = get_files session in
+
+  Hfile.fold
+    (fun _ f acc ->
+      let elems =
+        fold_all_any session
+          (fun acc any ->
+            let should_skip = match any with ATh th -> theory_goals th = [] | _ -> false in
+            if should_skip then acc else any_to_elem c session any :: acc)
+          [] (AFile f)
       in
-      { id; parent; proved; expl } :: acc)
-    []
+      (f, elems) :: acc)
+    files []
 
 let run_strategy (c : controller) (strat : string) (id : id) : unit Lwt.t =
   let open Wstdlib in
