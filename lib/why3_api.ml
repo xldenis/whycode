@@ -28,16 +28,13 @@ let run_strategy_on_goal c id strat ~notification ~finalize =
     if pc < 0 || pc >= Array.length strat then halt mem
     else begin
       match Array.get strat pc with
-      | Icall_prover (p, timelimit, memlimit, steplimit) ->
-          let main = Whyconf.get_main c.controller_config in
-          let timelimit = Opt.get_def (Whyconf.timelimit main) timelimit in
-          let memlimit = Opt.get_def (Whyconf.memlimit main) memlimit in
-          let steplimit = Opt.get_def 0 steplimit in
+      | Icall_prover is ->
           let callback _panid res =
             match res with
             | UpgradeProver _ | Scheduled | Running -> (* nothing to do yet *) ()
             | Done { Call_provers.pr_answer = Call_provers.Valid; _ } ->
                 (* proof succeeded, nothing more to do *)
+                C.interrupt_proof_attempts_for_goal c g;
                 halt mem
             | Interrupted -> halt mem
             | Done _ | InternalFailure _ ->
@@ -47,10 +44,7 @@ let run_strategy_on_goal c id strat ~notification ~finalize =
                 (* should not happen *)
                 assert false
           in
-          let limit =
-            { Call_provers.limit_time = timelimit; limit_mem = memlimit; limit_steps = steplimit }
-          in
-          C.schedule_proof_attempt c g p ~limit ~callback ~notification
+          List.iter (fun i -> call_one_prover c i ~callback ~notification g) is
       | Itransform (trname, pcsuccess) ->
           let callback ntr =
             match ntr with
