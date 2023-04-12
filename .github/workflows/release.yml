@@ -67,7 +67,9 @@ jobs:
           OPAMLOCKED: locked
         uses: ocaml/setup-ocaml@v2
 
-      - run: opam install . --deps-only --locked
+      - run: |
+          opam install . --deps-only --locked
+          opam pin add why3 https://gitlab.inria.fr/why3/why3.git#bf2d824a8581c563729244233a90b64ef9853523
 
       - run: LINKING_MODE=static opam exec -- dune build --profile=release
 
