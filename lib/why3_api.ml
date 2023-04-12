@@ -14,6 +14,20 @@ let string_of_task (task : Task.task) tables =
   in
   Pp.string_of P.print_task task
 
+let call_one_prover (c : Controller_itp.controller) (p, timelimit, memlimit, steplimit) ~callback
+    ~notification g =
+  let main = Whyconf.get_main c.controller_config in
+  let timelimit = Opt.get_def (Whyconf.timelimit main) timelimit in
+  let memlimit = Opt.get_def (Whyconf.memlimit main) memlimit in
+  let steplimit = Opt.get_def 0 steplimit in
+
+  let limit =
+    { Call_provers.limit_time = timelimit; limit_mem = memlimit; limit_steps = steplimit }
+  in
+
+  C.schedule_proof_attempt c g p ~limit ~callback ~notification
+
+
 let run_strategy_on_goal c id strat ~notification ~finalize =
   let open Strategy in
   let open Controller_itp in
