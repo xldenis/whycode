@@ -1,29 +1,18 @@
-# WhyCode
+# WhyCode: A VsCode front-end for Why3
 
-This extension adds support for [Why3](https://why3.lri.fr) proofs to VSCode, enabling users to do program verification directly in their code.
-WhyCode uses an LSP server to provide Code Actions that perform verification strategies. **Note: The LSP server must currently be installed manually**
-Usage will also require at least one backend to Why3 sucg as Z3, CVC5 or Alt-Ergo.
+This repository contains an experiment in using VsCode as a front-end for the [Why3](http://why3.lri.fr) prover framework, rather than its hand-built GTK frontend.
 
-**This is pre-release software, please [report all bugs](https://github.com/xldenis/whycode)**
+# Using the VSCode Extension
 
-## Installing the server
+- Launch VSCode and run the command `Start Why3`
 
-0. Clone the repository at https://github.com/xldenis/whycode
-1. Create a local switch and install the server into it: `ocaml switch create . --locked`
-2. Ensure the resulting `whycode` binary is available on your `$PATH`, or set `Whycode: Executable Path` to the appropriate path
+# Proving Rust code with Creusot
 
-## Features
+- Setup the server and client like shown above
+- Go to your VSCode settings
+- In `Whycode: Extra Args` add `-L/path/to/creusot/prelude/`
 
-1. Load, reset and save Why3 proof sessions
-2. Run Why3 strategies on goals, perform basic proof tasks
-3. Show unproved goals in source code
-4. View and perform Rust proofs using [Creusot](https://github.com/xldenis/creusot)
+# FAQ
 
-## Upcoming
-
-1. View the Why3 task tree
-2. Run individual _transformations_
-3. View proof tasks
-4. Display counter-examples inline
-5. Configure Why3 backends from VSCode
-6. Syntax highlighting
+- Something is seems like a bug!
+  - It probably is, so don't hesitate to [open an issue](https://github.com/xldenis/whycode).
