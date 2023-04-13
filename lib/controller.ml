@@ -76,8 +76,6 @@ let reload (c : controller) : unit =
   let _ = Controller_itp.reload_files c.controller in
   ()
 
-exception Omg of string
-
 let unproved_tasks (c : controller) : id list =
   let open Session_itp in
   let session = session c in
@@ -150,11 +148,13 @@ let any_to_elem c session any =
   let proved = Session_itp.any_proved c.controller.controller_session any in
   let expl =
     match any with
-    | AFile _ -> "File (TODO)"
+    | AFile file -> Sysutil.basename (file_path file)
     | ATh th -> (theory_name th).id_string
-    | ATn _ -> "Transformation"
+    | ATn tn -> get_transf_name session tn
     | APn _ -> (task c id).expl
-    | APa _ -> "Attempt"
+    | APa pa ->
+        let pa = get_proof_attempt_node session pa in
+        Pp.string_of Whyconf.print_prover pa.prover
   in
   { id; parent; proved; expl }
 

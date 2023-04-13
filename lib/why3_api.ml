@@ -27,7 +27,6 @@ let call_one_prover (c : Controller_itp.controller) (p, timelimit, memlimit, ste
 
   C.schedule_proof_attempt c g p ~limit ~callback ~notification
 
-
 let run_strategy_on_goal c id strat ~notification ~finalize =
   let open Strategy in
   let open Controller_itp in
