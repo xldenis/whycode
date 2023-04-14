@@ -99,28 +99,6 @@ let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Control
       else false)
     (unproved_leaf_nodes c)
 
-type tree_node = { status : bool; name : string; parent : int option; id : int }
-
-let get_any_name (s : Session_itp.session) (a : Session_itp.any) =
-  match a with
-  | Session_itp.AFile f -> "" (* TODO *)
-  | Session_itp.ATh th -> (Session_itp.theory_name th).id_string
-  | Session_itp.ATn tn -> Session_itp.get_transf_name s tn
-  | Session_itp.APn pn -> (Session_itp.get_proof_name s pn).id_string
-  | Session_itp.APa pa ->
-      let prover = (Session_itp.get_proof_attempt_node s pa).prover in
-      prover.prover_name ^ prover.prover_version
-
-(* let any_to_tree_node (s : Session_itp.session) (a : Session_itp.any) : tree_node =
-   let parent = Session_itp.get_any_parent s a in
-   let name = get_any_name s a in
-
-   { status = Session_itp.any_proved s a; name ; parent; id =  }
-*)
-(* let get_task_tree (c : controller) : unit list =
-   let session = c.controller_session in
-   Session_itp.fold_all_session session (fun acc any -> []) []
-*)
 (* Publish a batch of diagnostics for a set of files *)
 let send_all_diags (notify_back : Jsonrpc2.notify_back)
     (diags : (string, Diagnostic.t list) Hashtbl.t) =
@@ -158,6 +136,33 @@ let update_trees (notify_back : Jsonrpc2.notify_back) (cont : Controller.control
     (fun n -> notify_back#send_notification (Lsp.Server_notification.UnknownNotification n))
     notifs
 
+let errors_to_diagnostics cont (es : exn list) : (string, Diagnostic.t list) Hashtbl.t =
+  let diags = Hashtbl.create 7 in
+  let default = Session_itp.get_dir (Controller.session cont) in
+  List.iter
+    (fun e ->
+      let file, diag =
+        match e with
+        | Loc.Located (pos, exn) ->
+            let range = loc_to_range pos in
+            let message = Format.asprintf "%a" Exn_printer.exn_printer exn in
+            let file, _, _, _, _ = Loc.get pos in
+            (file, Diagnostic.create ~range ~severity:Error ~source:"Why3" ~message ())
+        | exn ->
+            let range =
+              Range.create
+                ~start:(Position.create ~line:0 ~character:0)
+                ~end_:(Position.create ~line:0 ~character:0)
+            in
+            let message = Format.asprintf "%a" Exn_printer.exn_printer exn in
+            (default, Diagnostic.create ~range ~severity:Error ~source:"Why3" ~message ())
+      in
+
+      let errors = diag :: (Hashtbl.find_opt diags file |> Option.value ~default:[]) in
+      Hashtbl.replace diags file errors)
+    es;
+  diags
+
 class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
@@ -180,20 +185,12 @@ class why_lsp_server () =
         (uri : Lsp.Types.DocumentUri.t) (_contents : string) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path uri) in
-        let _ = Whycode.Controller.reload cont in
-        self#publish_diagnostics notify_back cont
-      with
-      | Controller_itp.Errors_list _ ->
-          notify_back#send_diagnostic
-            [
-              Lsp.Types.Diagnostic.create ()
-                ~range:
-                  (Range.create
-                     ~start:(Position.create ~line:0 ~character:0)
-                     ~end_:(Position.create ~line:0 ~character:0))
-                ~severity:Error ~source:"Why3" ~message:"An error occured";
-            ]
-      | Not_found -> return ()
+        try
+          Whycode.Controller.reload cont;
+          self#update_client notify_back cont
+        with Controller_itp.Errors_list es ->
+          self#send_diags notify_back (errors_to_diagnostics cont es)
+      with Not_found -> return ()
 
     method on_notif_doc_did_open ~notify_back d ~content = self#_on_doc ~notify_back d.uri content
 
@@ -238,9 +235,11 @@ class why_lsp_server () =
       let cont =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
-      let _ = Controller.reload cont in
-
-      self#publish_diagnostics notify_back cont
+      try
+        Controller.reload cont;
+        self#update_client notify_back cont
+      with Controller_itp.Errors_list es ->
+        self#send_diags notify_back (errors_to_diagnostics cont es)
 
     method private on_run_command_req ~notify_back (n : RunTransformationRequest.t)
         : Yojson.Safe.t t =
@@ -258,7 +257,7 @@ class why_lsp_server () =
         let* _ = Lwt.join promises in
         let* _ = log_info notify_back "Done running!" in
 
-        let* _ = self#publish_diagnostics notify_back cont in
+        let* _ = self#update_client notify_back cont in
 
         return `Null
       with Not_found -> return `Null
@@ -268,13 +267,21 @@ class why_lsp_server () =
         let cont =
           SessionManager.find_controller manager (DocumentUri.to_path n.textDocument.uri)
         in
-        let* _ = log_info notify_back "Saving session" in
-        Controller.save cont;
-        return ()
+        try
+          let* _ = log_info notify_back "Saving session" in
+          Controller.save cont;
+          Whycode.Controller.reload cont;
+          self#update_client notify_back cont
+        with Controller_itp.Errors_list es ->
+          self#send_diags notify_back (errors_to_diagnostics cont es)
       with Not_found -> return ()
 
-    method private publish_diagnostics notify (cont : Controller.controller) =
+    method private update_client notify (cont : Controller.controller) =
       let diags = gather_diagnostics_list cont in
+      let* _ = self#send_diags notify diags in
+      update_trees notify cont
+
+    method private send_diags notify (diags : _ Hashtbl.t) =
       (* Figure out if we had diagnostics for a file which we no longer have any for *)
       let cleared =
         Hashtbl.fold
@@ -292,23 +299,21 @@ class why_lsp_server () =
       let* _ = send_all_diags notify diags in
       outstanding_diag <- outstanding;
 
-      (* Update the proof trees for the open session *)
-      let* _ = update_trees notify cont in
       return ()
 
     method private on_reset_session ~notify_back (reset : ResetSessionNotification.t) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
         Controller.reset cont;
-        let* _ = self#publish_diagnostics notify_back cont in
+        let* _ = self#update_client notify_back cont in
         return `Null
       with Not_found -> return `Null
 
     method private on_reload_session ~notify_back (reset : ReloadSessionNotification.t) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
-        let _ = Controller.reload cont in
-        let* _ = self#publish_diagnostics notify_back cont in
+        Controller.reload cont;
+        let* _ = self#update_client notify_back cont in
         return ()
       with Not_found -> return ()
 
@@ -316,7 +321,7 @@ class why_lsp_server () =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
         let* _ = Controller.replay cont in
-        let* _ = self#publish_diagnostics notify_back cont in
+        let* _ = self#update_client notify_back cont in
         return ()
       with Not_found -> return ()
 
