@@ -1,8 +1,6 @@
 open Util
 open Why3
 open Whycode.Notifications
-open Whycode.Why3_api
-open Controller_itp
 open Whycode
 
 let warn loc message =
@@ -86,7 +84,6 @@ let gather_diagnostics_list (c : Whycode.Controller.controller) :
   tbl
 
 let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Controller.id list =
-  let open Session_itp in
   List.filter
     (fun id ->
       let task = Controller.task c id in
@@ -162,6 +159,17 @@ let errors_to_diagnostics cont (es : exn list) : (string, Diagnostic.t list) Has
       Hashtbl.replace diags file errors)
     es;
   diags
+
+type command = Transform of string | Prover of string | Strategy of string
+
+let identify_cmd env config strats cmd : command =
+  try
+    let _ = Trans.lookup_trans env cmd in
+    Transform cmd
+  with Trans.UnknownTrans _ -> (
+    match Server_utils.return_prover cmd config with
+    | Some _ -> Prover cmd
+    | None -> if List.mem cmd strats then Strategy cmd else raise Not_found)
 
 class why_lsp_server () =
   let cli_opts = [] in
@@ -241,26 +249,30 @@ class why_lsp_server () =
       with Controller_itp.Errors_list es ->
         self#send_diags notify_back (errors_to_diagnostics cont es)
 
-    method private on_run_command_req ~notify_back (n : RunTransformationRequest.t)
-        : Yojson.Safe.t t =
-      try
-        let* _ = log_info notify_back "Running command" in
-        let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
+    method private on_run_command ~notify_back (n : RunTransformationRequest.t) : Yojson.Safe.t t =
+      let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
+      let kind = identify_cmd env config (Controller.strategies cont) n.command in
 
-        let ids =
-          match n.target with `Range r -> find_unproved_nodes_at cont r | `Node i -> [ i ]
-        in
+      let ids =
+        match n.target with `Range r -> find_unproved_nodes_at cont r | `Node i -> [ i ]
+      in
 
-        let promises = List.map (fun id -> Controller.run_strategy cont n.command id) ids in
+      let promises =
+        List.map
+          (fun id ->
+            match kind with
+            | Strategy _ -> Controller.run_strategy cont n.command id
+            | Transform _ -> Controller.run_transform cont n.command [] id
+            | Prover _ -> failwith "Not yet implemented")
+          ids
+      in
+      let* _ = Lwt.join promises in
 
-        let* _ = log_info notify_back "Waiting on..." in
-        let* _ = Lwt.join promises in
-        let* _ = log_info notify_back "Done running!" in
+      let* _ = log_info notify_back "Done!" in
 
-        let* _ = self#update_client notify_back cont in
+      let* _ = self#update_client notify_back cont in
 
-        return `Null
-      with Not_found -> return `Null
+      return `Null
 
     method private on_did_save_notif ~notify_back (n : DidSaveTextDocumentParams.t) =
       try
@@ -344,7 +356,7 @@ class why_lsp_server () =
       match name with
       | "proof/runTransformation" -> begin
           let params = parse RunTransformationRequest.of_yojson req in
-          params >>= self#on_run_command_req ~notify_back
+          params >>= self#on_run_command ~notify_back
         end
       | "proof/resetSession" -> begin
           let params = parse ResetSessionNotification.of_yojson req in

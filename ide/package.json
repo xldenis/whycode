@@ -31,6 +31,31 @@
       {
         "command": "whycode.replay_session",
         "title": "Why3 Replay Proof Session"
+      },
+      {
+        "command": "whycode.taskTree.runAuto0",
+        "title": "Auto Level 0",
+        "when": false
+      },
+      {
+        "command": "whycode.taskTree.runAuto1",
+        "title": "Auto Level 1",
+        "when": false
+      },
+      {
+        "command": "whycode.taskTree.runAuto2",
+        "title": "Auto Level 2",
+        "when": false
+      },
+      {
+        "command": "whycode.taskTree.runAuto3",
+        "title": "Auto Level 3",
+        "when": false
+      },
+      {
+        "command": "whycode.taskTree.splitVC",
+        "title": "Split VC",
+        "when": false
       }
     ],
     "views": {
@@ -98,7 +123,30 @@
         }
       }
     },
-    "menus": {},
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "whycode.taskTree.runAuto0",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "whycode.taskTree.runAuto1",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "whycode.taskTree.runAuto2",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "whycode.taskTree.runAuto3",
+          "when": "view == taskTree"
+        },
+        {
+          "command": "whycode.taskTree.splitVC",
+          "when": "view == taskTree"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "mlcfg",

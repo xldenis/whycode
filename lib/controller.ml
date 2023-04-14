@@ -67,6 +67,7 @@ let pn_from_id c id =
   with Not_found -> raise (PnNotFound id)
 
 let session (c : controller) : Session_itp.session = c.controller.controller_session
+let env (c : controller) : Env.env = c.controller.controller_env
 
 let strategies (c : controller) : string list =
   let open Wstdlib in
@@ -181,6 +182,16 @@ let run_strategy (c : controller) (strat : string) (id : id) : unit Lwt.t =
   run_strategy_on_goal c.controller (pn_from_id c id) strat
     ~notification:(fun _ -> ())
     ~finalize:(fun _ -> Lwt.wakeup resolver ());
+  promise
+
+let run_transform (c : controller) (trans : string) (args : string list) (id : id) : unit Lwt.t =
+  let open Wstdlib in
+  let promise, resolver = Lwt.wait () in
+  C.schedule_transformation c.controller (pn_from_id c id) trans args
+    ~callback:(fun status ->
+      match status with TSdone _ | TSfailed _ | TSfatal _ -> Lwt.wakeup resolver () | _ -> ())
+    ~notification:(fun _ -> ());
+
   promise
 
 let from_file ~mkdir config env (id : string) : controller * string =

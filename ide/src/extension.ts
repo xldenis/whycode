@@ -36,6 +36,8 @@ export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/star
 
 export const publishTree = new NotificationType<{ uri: DocumentUri; elems: treeElem[] }>("proof/publishTree");
 
+// TODO: This is a bad hack that should be replaced
+let activeTree: string | undefined = undefined;
 const trees: Map<string, TaskTree> = new Map();
 
 class TaskProvider implements vscode.TextDocumentContentProvider {
@@ -110,18 +112,46 @@ class Config {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildCommands(): [string, (...args: any[]) => any][] {
     return [
-    // [
-    //     "whycode.task_tree.run_auto_0",
-    //     (task: TaskNode) => {
-    //         vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Auto_level_0");
-    //     },
-    // ],
-    // [
-    //     "whycode.task_tree.split_vc",
-    //     (task: TaskNode) => {
-    //         vscode.commands.executeCommand("why3.run_transformation", task.uri, task.id, "Split_VC");
-    //     },
-    // ],
+        [
+            "whycode.taskTree.runAuto0",
+            (e: treeElem) => {
+                if (activeTree != undefined) {
+                    vscode.commands.executeCommand("whycode.run_transformation", activeTree, e.id, "Auto_level_0");
+                }
+            },
+        ],
+        [
+            "whycode.taskTree.runAuto1",
+            (e: treeElem) => {
+                if (activeTree != undefined) {
+                    vscode.commands.executeCommand("whycode.run_transformation", activeTree, e.id, "Auto_level_1");
+                }
+            },
+        ],
+        [
+            "whycode.taskTree.runAuto2",
+            (e: treeElem) => {
+                if (activeTree != undefined) {
+                    vscode.commands.executeCommand("whycode.run_transformation", activeTree, e.id, "Auto_level_2");
+                }
+            },
+        ],
+        [
+            "whycode.taskTree.runAuto3",
+            (e: treeElem) => {
+                if (activeTree != undefined) {
+                    vscode.commands.executeCommand("whycode.run_transformation", activeTree, e.id, "Auto_level_3");
+                }
+            },
+        ],
+        [
+            "whycode.taskTree.splitVC",
+            (e: treeElem) => {
+                if (activeTree != undefined) {
+                    vscode.commands.executeCommand("whycode.run_transformation", activeTree, e.id, "Split_VC");
+                }
+            },
+        ],
         [
             "whycode.reset_session",
             () => {
@@ -335,15 +365,16 @@ function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
             trees.set(notif.uri, tasks);
         }
         tasks.fromElems(notif.elems);
-        treeDataProvider.tree = trees.get(notif.uri)!;
+        activeTree = notif.uri;
+        treeDataProvider.tree = tasks;
         treeDataProvider.refresh();
     });
 
-    const focusOnTree = function (id: string) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        treeDataProvider.tree = trees.get(id)!;
-        treeDataProvider.refresh();
-    };
+    // const focusOnTree = function (id: string) {
+    // // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    //     treeDataProvider.tree = trees.get(id)!;
+    //     treeDataProvider.refresh();
+    // };
 
     setTimeout(async function () {
         const uri = vscode.window.activeTextEditor?.document.uri?.toString();
