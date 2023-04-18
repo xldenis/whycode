@@ -38,10 +38,14 @@ jobs:
           - os: macos-latest
             code-target: darwin-x64
 
+          - os: windows-latest
+            code-target: win32-x64
+
     name: dist (${{ matrix.code-target }})
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set patch version
+        shell: bash
         run: |
           if [[ $GITHUB_REF == 'refs/heads/release' ]]; then
             echo "version=0.1" >> $GITHUB_ENV
@@ -72,6 +76,10 @@ jobs:
           opam pin add why3 https://gitlab.inria.fr/why3/why3.git#bf2d824a8581c563729244233a90b64ef9853523
 
       - run: LINKING_MODE=static opam exec -- dune build --profile=release
+        if: matrix.code-target != 'win32-x64'
+
+      - run: opam exec -- dune build --profile=release
+        if: matrix.code-target == 'win32-x64'
 
       - run: npm ci
         working-directory: ide
