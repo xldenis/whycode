@@ -105,13 +105,22 @@ class Config {
       return vscode.workspace.getConfiguration("whycode").get("auto.finish");
   }
 
-  public doAuto(): string | undefined {
-      return vscode.workspace.getConfiguration("whycode").get("auto.on");
+  public doAuto(): boolean {
+      return vscode.workspace.getConfiguration("whycode").get("auto.on") === "save";
   }
 }
 
+function runStartStrategy(uri: string, config: Config) {
+    let strat = config.autoStrategyStart();
+    if (strat === undefined) {
+        return;
+    }
+
+    vscode.commands.executeCommand("whycode.run_transformation", uri, undefined, strat);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildCommands(): [string, (...args: any[]) => any][] {
+function buildCommands(config: Config): [string, (...args: any[]) => any][] {
     return [
         [
             "whycode.taskTree.runAuto0",
@@ -155,10 +164,11 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         ],
         [
             "whycode.reset_session",
-            () => {
+            async () => {
                 const uri = vscode.window.activeTextEditor?.document.uri?.toString();
                 if (uri != undefined) {
-                    client.sendRequest("proof/resetSession", { uri: uri });
+                    await client.sendRequest("proof/resetSession", { uri: uri });
+                    runStartStrategy(uri, config);
                     vscode.window.showInformationMessage("Session Reset");
                 }
             },
@@ -195,13 +205,15 @@ function buildCommands(): [string, (...args: any[]) => any][] {
         ],
         [
             "whycode.run_transformation",
-            (uri: DocumentUri, node: number | Range, command: string) => {
+            (uri: DocumentUri, node: number | Range | undefined, command: string) => {
                 // console.log(uri, JSON.stringify(node), command);
                 let target;
                 if (typeof node == "number") {
                     target = ["Node", node];
-                } else {
+                } else if (node instanceof Range) {
                     target = ["Range", { start: node.start, end: node.end }];
+                } else {
+                    target = null;
                 }
 
                 client.sendRequest("proof/runTransformation", {
@@ -418,7 +430,7 @@ export async function activate(context: ExtensionContext) {
 
         workspace.registerTextDocumentContentProvider(TaskProvider.scheme, provider);
 
-        buildCommands().forEach(([name, command]) => {
+        buildCommands(config).forEach(([name, command]) => {
             const disposable = vscode.commands.registerCommand(name, command);
             context.subscriptions.push(disposable);
         });

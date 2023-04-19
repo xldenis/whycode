@@ -1,5 +1,3 @@
-open Why3
-
 let uri_of_yojson j =
   try Ok (Lsp.Types.DocumentUri.t_of_yojson j) with _ -> Error "could not parse uri"
 
@@ -15,7 +13,7 @@ type target = [ `Range of (Lsp.Types.Range.t[@of_yojson range_of_yojson]) | `Nod
 module RunTransformationRequest = struct
   type t = {
     command : string;
-    target : target;
+    target : target option;
     uri : Lsp.Types.DocumentUri.t; [@of_yojson uri_of_yojson]
   }
   [@@deriving of_yojson] [@@yojson.allow_extra_fields]

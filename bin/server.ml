@@ -83,6 +83,7 @@ let gather_diagnostics_list (c : Whycode.Controller.controller) :
     (unproved_leaf_nodes c);
   tbl
 
+(* FIXME: Check the file too! *)
 let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Controller.id list =
   List.filter
     (fun id ->
@@ -127,25 +128,31 @@ let build_tree_notification (cont : Controller.controller) : Jsonrpc.Notificatio
 
   notifs
 
-let build_watcher_registration_req ~(patterns : GlobPattern.t list) ~(reg_id : string) : unit Lsp.Server_request.t =
+let build_watcher_registration_req ~(patterns : GlobPattern.t list) ~(reg_id : string) :
+    unit Lsp.Server_request.t =
   let watchers = List.map (fun p -> FileSystemWatcher.create ~globPattern:p ()) patterns in
   let opts = DidChangeWatchedFilesRegistrationOptions.create ~watchers in
   let opts_json = DidChangeWatchedFilesRegistrationOptions.yojson_of_t opts in
-  let reg = Registration.create ~id:reg_id ~method_:"workspace/didChangeWatchedFiles" ~registerOptions:opts_json () in 
-  Lsp.Server_request.ClientRegisterCapability { registrations = [reg] }
+  let reg =
+    Registration.create ~id:reg_id ~method_:"workspace/didChangeWatchedFiles"
+      ~registerOptions:opts_json ()
+  in
+  Lsp.Server_request.ClientRegisterCapability { registrations = [ reg ] }
 
 let register_watchers (notify_back : Jsonrpc2.notify_back) (c : Whycode.Controller.controller) =
   let open Whycode in
   let open Session_itp in
   let session = Controller.session c in
   let files = get_files session in
-  Hfile.iter 
+  Hfile.iter
     (fun _key file ->
-      let path = (system_path session file) in
+      let path = system_path session file in
       let pat = RelativePattern.create ~baseUri:(`URI (DocumentUri.of_path path)) ~pattern:"*" in
-      let req = build_watcher_registration_req ~patterns:[`RelativePattern pat] ~reg_id:path in
-      let _ = notify_back#send_request req (fun res ->
-        match res with Error e -> log_info notify_back e.message | Ok _ -> return ()) in
+      let req = build_watcher_registration_req ~patterns:[ `RelativePattern pat ] ~reg_id:path in
+      let _ =
+        notify_back#send_request req (fun res ->
+            match res with Error e -> log_info notify_back e.message | Ok _ -> return ())
+      in
       ())
     files
 
@@ -248,7 +255,6 @@ class why_lsp_server () =
       with Not_found -> return ()
 
     method on_notif_doc_did_open ~notify_back d ~content:_ = self#_on_doc ~notify_back d.uri
-
     method on_notif_doc_did_change ~notify_back:_ _ _ ~old_content:_ ~new_content:_ = return ()
 
     (* TODO: keey a mapping of which files are related to which sessions and use that here *)
@@ -312,7 +318,10 @@ class why_lsp_server () =
       let kind = identify_cmd env config (Controller.strategies cont) n.command in
 
       let ids =
-        match n.target with `Range r -> find_unproved_nodes_at cont r | `Node i -> [ i ]
+        match n.target with
+        | Some (`Range r) -> find_unproved_nodes_at cont r
+        | Some (`Node i) -> [ i ]
+        | None -> Controller.unproved_tasks cont
       in
 
       let promises =
@@ -347,13 +356,16 @@ class why_lsp_server () =
       with Not_found -> return ()
 
     method private on_did_change_notif ~notify_back (n : DidChangeWatchedFilesParams.t) =
-      let _ = List.iter
-        (fun (fe : FileEvent.t) -> match fe.type_ with
-          | Changed ->
-            let _ = self#_on_doc ~notify_back fe.uri in ()
-          | _ -> ()
-          )
-        n.changes in
+      let _ =
+        List.iter
+          (fun (fe : FileEvent.t) ->
+            match fe.type_ with
+            | Changed ->
+                let _ = self#_on_doc ~notify_back fe.uri in
+                ()
+            | _ -> ())
+          n.changes
+      in
       return ()
 
     method private update_client notify (cont : Controller.controller) =
