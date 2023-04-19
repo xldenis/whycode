@@ -33,7 +33,7 @@ type ResolveSessionResponse = ResolveSessionParams;
 export const resolve = new RequestType<ResolveSessionParams, ResolveSessionResponse | null, unknown>(
     "proof/resolveSesion"
 );
-export const startProof = new NotificationType<{ uri: DocumentUri }>("proof/start");
+export const startProof = new RequestType<{ uri: DocumentUri }, boolean | null, unknown>("proof/start");
 
 export const publishTree = new NotificationType<{ uri: DocumentUri; elems: treeElem[] }>("proof/publishTree");
 
@@ -240,14 +240,17 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
         ],
         [
             "whycode.start",
-            () => {
+            async () => {
                 const document = vscode.window.activeTextEditor?.document;
                 if (document == undefined) {
                     return;
                 }
 
                 // proofDocs.add(document.uri);
-                client.sendNotification(startProof, { uri: document.uri.toString() });
+                let fresh = await client.sendRequest(startProof, { uri: document.uri.toString() });
+                if (fresh) {
+                    runStartStrategy(document.uri.toString(), config);
+                }
             },
         ],
 

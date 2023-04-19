@@ -194,10 +194,40 @@ let run_transform (c : controller) (trans : string) (args : string list) (id : i
 
   promise
 
-let from_file ~mkdir config env (id : string) : controller * string =
-  let files = Queue.create () in
-  Queue.push id files;
-  let dir = Server_utils.get_session_dir ~allow_mkdir:mkdir files in
+let has_extension f =
+  try
+    let _ = Filename.chop_extension f in
+    true
+  with Invalid_argument _ -> false
+
+let get_session_dir file =
+  let first = file in
+  (* The session should always return an absolute path. It will be used for
+     relative calculus of every other paths *)
+  let first = Sysutil.concat (Sys.getcwd ()) first in
+  let dir =
+    if Sys.file_exists first then
+      if Sys.is_directory first then first
+      else if Filename.basename first = "why3session.xml" then Filename.dirname first
+      else
+        (* first was the only file *)
+        let d =
+          try Filename.chop_extension first
+          with Invalid_argument _ ->
+            invalid_arg ("'" ^ first ^ "' has no extension and is not a directory")
+        in
+        d
+    else if (* first does not exist *)
+            has_extension first then invalid_arg ("file not found: " ^ first)
+    else first
+  in
+  dir
+
+let from_file ~mkdir config env (id : string) : controller * string * bool =
+  let dir = get_session_dir id in
+  let fresh = not (Sys.file_exists dir) in
+  if mkdir && fresh then Unix.mkdir dir 0o700;
+
   let ses = Session_itp.load_session dir in
   let cont = Controller_itp.create_controller config env ses in
   Server_utils.load_strategies cont;
@@ -207,4 +237,4 @@ let from_file ~mkdir config env (id : string) : controller * string =
   in
   add_file_to_session cont why_file;
   let cont = from_why cont in
-  (cont, dir)
+  (cont, dir, fresh)

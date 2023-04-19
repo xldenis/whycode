@@ -32,16 +32,16 @@ module SessionManager = struct
 
   let create () : manager = { path_to_id = Hashtbl.create 32; id_to_controller = Hashtbl.create 32 }
 
-  let find_or_create_controller (m : manager) config env (id : string) : controller =
+  let find_or_create_controller (m : manager) config env (id : string) : controller * bool =
     try
       let session = Hashtbl.find m.path_to_id id in
-      Hashtbl.find m.id_to_controller session
+      (Hashtbl.find m.id_to_controller session, false)
     with Not_found ->
-      let cont, dir = Whycode.Controller.from_file config env ~mkdir:true id in
+      let cont, dir, fresh = Controller.from_file config env ~mkdir:true id in
 
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
-      cont
+      (cont, fresh)
 
   let find_controller (m : manager) id : controller =
     let session = Hashtbl.find m.path_to_id id in
@@ -302,16 +302,19 @@ class why_lsp_server () =
         else return None
       with Not_found -> return None
 
-    method private on_start_proof_notif ~notify_back (n : StartProofNotification.t) =
-      let cont =
+    method private on_start_proof_req ~notify_back (n : StartProofNotification.t) : Yojson.Safe.t t
+        =
+      let cont, fresh =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
       try
         Controller.reload cont;
         register_watchers notify_back cont;
-        self#update_client notify_back cont
+        let* _ = self#update_client notify_back cont in
+        return (`Bool fresh)
       with Controller_itp.Errors_list es ->
-        self#send_diags notify_back (errors_to_diagnostics cont es)
+        let* _ = self#send_diags notify_back (errors_to_diagnostics cont es) in
+        return `Null
 
     method private on_run_command ~notify_back (n : RunTransformationRequest.t) : Yojson.Safe.t t =
       let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
@@ -438,6 +441,9 @@ class why_lsp_server () =
           let params = parse RunTransformationRequest.of_yojson req in
           params >>= self#on_run_command ~notify_back
         end
+      | "proof/start" ->
+          let params = parse StartProofNotification.of_yojson req in
+          params >>= self#on_start_proof_req ~notify_back
       | "proof/resetSession" -> begin
           let params = parse ResetSessionNotification.of_yojson req in
           params >>= self#on_reset_session ~notify_back
@@ -456,9 +462,6 @@ class why_lsp_server () =
         match a with Error e -> failwith e | Ok p -> return p
       in
       match notif.method_ with
-      | "proof/start" ->
-          let params = parse StartProofNotification.of_yojson notif in
-          params >>= self#on_start_proof_notif ~notify_back
       | "proof/reloadSession" -> begin
           let params = parse ReloadSessionNotification.of_yojson notif in
           params >>= self#on_reload_session ~notify_back

@@ -24,4 +24,4 @@ type tree_elem = { expl : string; proved : bool; id : id; parent : id option }
 [@@deriving to_yojson]
 
 val file_tree_as_list : controller -> (file * tree_elem list) list
-val from_file : mkdir:bool -> Whyconf.config -> Env.env -> string -> controller * string
+val from_file : mkdir:bool -> Whyconf.config -> Env.env -> string -> controller * string * bool
