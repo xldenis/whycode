@@ -81,6 +81,7 @@ jobs:
           cp _build/default/bin/main.exe ide/whycode
           cp -R _opam/lib/why3 ide/why-lib
           cp -R _opam/share/why3 ide/why-data
+        if: matrix.code_target != 'no-server'
 
       - run: mkdir dist
 
@@ -93,12 +94,21 @@ jobs:
 
       - name: Package
         run: npx vsce package -o "../dist/whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }}
-        if: github.ref == 'refs/heads/release'
+        if: github.ref == 'refs/heads/release' && matrix.code_target != 'no-server'
         working-directory: ide
 
       - name: Package (Nightly)
         run: npx vsce package -o "../dist/whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }} --pre-release
-        if: github.ref != 'refs/heads/release'
+        if: github.ref != 'refs/heads/release' && matrix.code_target != 'no-server'
+        working-directory: ide
+
+      # Publish fallback
+      - if: matrix.code_target == 'no-server' && github.ref == 'refs/heads/release'
+        run: npx vsce package -o ../../dist/whycode-no-server.vsix
+        working-directory: ide
+
+      - if: matrix.code_target == 'no-server' && github.ref != 'refs/heads/release'
+        run: npx vsce package -o ../../dist/whycode-no-server.vsix --pre-release
         working-directory: ide
 
       - name: Upload artifacts
