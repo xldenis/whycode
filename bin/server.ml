@@ -127,6 +127,28 @@ let build_tree_notification (cont : Controller.controller) : Jsonrpc.Notificatio
 
   notifs
 
+let build_watcher_registration_req ~(patterns : GlobPattern.t list) ~(reg_id : string) : unit Lsp.Server_request.t =
+  let watchers = List.map (fun p -> FileSystemWatcher.create ~globPattern:p ()) patterns in
+  let opts = DidChangeWatchedFilesRegistrationOptions.create ~watchers in
+  let opts_json = DidChangeWatchedFilesRegistrationOptions.yojson_of_t opts in
+  let reg = Registration.create ~id:reg_id ~method_:"workspace/didChangeWatchedFiles" ~registerOptions:opts_json () in 
+  Lsp.Server_request.ClientRegisterCapability { registrations = [reg] }
+
+let register_watchers (notify_back : Jsonrpc2.notify_back) (c : Whycode.Controller.controller) =
+  let open Whycode in
+  let open Session_itp in
+  let session = Controller.session c in
+  let files = get_files session in
+  Hfile.iter 
+    (fun _key file ->
+      let path = (system_path session file) in
+      let pat = RelativePattern.create ~baseUri:(`URI (DocumentUri.of_path path)) ~pattern:"*" in
+      let req = build_watcher_registration_req ~patterns:[`RelativePattern pat] ~reg_id:path in
+      let _ = notify_back#send_request req (fun res ->
+        match res with Error e -> log_info notify_back e.message | Ok _ -> return ()) in
+      ())
+    files
+
 let update_trees (notify_back : Jsonrpc2.notify_back) (cont : Controller.controller) =
   let notifs = build_tree_notification cont in
   Lwt_list.iter_p
@@ -215,7 +237,7 @@ class why_lsp_server () =
     method! private config_code_action_provider = `CodeActionOptions (CodeActionOptions.create ())
 
     method private _on_doc ~(notify_back : Linol_lwt.Jsonrpc2.notify_back)
-        (uri : Lsp.Types.DocumentUri.t) (_contents : string) =
+        (uri : Lsp.Types.DocumentUri.t) =
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path uri) in
         try
@@ -225,10 +247,9 @@ class why_lsp_server () =
           self#send_diags notify_back (errors_to_diagnostics cont es)
       with Not_found -> return ()
 
-    method on_notif_doc_did_open ~notify_back d ~content = self#_on_doc ~notify_back d.uri content
+    method on_notif_doc_did_open ~notify_back d ~content:_ = self#_on_doc ~notify_back d.uri
 
-    method on_notif_doc_did_change ~notify_back d _c ~old_content:_old ~new_content =
-      self#_on_doc ~notify_back d.uri new_content
+    method on_notif_doc_did_change ~notify_back:_ _ _ ~old_content:_ ~new_content:_ = return ()
 
     (* TODO: keey a mapping of which files are related to which sessions and use that here *)
     method on_notif_doc_did_close ~notify_back:_ _ = return ()
@@ -281,6 +302,7 @@ class why_lsp_server () =
       in
       try
         Controller.reload cont;
+        register_watchers notify_back cont;
         self#update_client notify_back cont
       with Controller_itp.Errors_list es ->
         self#send_diags notify_back (errors_to_diagnostics cont es)
@@ -323,6 +345,16 @@ class why_lsp_server () =
         with Controller_itp.Errors_list es ->
           self#send_diags notify_back (errors_to_diagnostics cont es)
       with Not_found -> return ()
+
+    method private on_did_change_notif ~notify_back (n : DidChangeWatchedFilesParams.t) =
+      let _ = List.iter
+        (fun (fe : FileEvent.t) -> match fe.type_ with
+          | Changed ->
+            let _ = self#_on_doc ~notify_back fe.uri in ()
+          | _ -> ()
+          )
+        n.changes in
+      return ()
 
     method private update_client notify (cont : Controller.controller) =
       let diags = gather_diagnostics_list cont in
@@ -435,6 +467,7 @@ class why_lsp_server () =
     method! on_notification_unhandled ~notify_back notif =
       match notif with
       | Lsp.Client_notification.DidSaveTextDocument n -> self#on_did_save_notif ~notify_back n
+      | Lsp.Client_notification.DidChangeWatchedFiles n -> self#on_did_change_notif ~notify_back n
       | Lsp.Client_notification.UnknownNotification n -> self#on_unknown_notification ~notify_back n
       | _ -> return ()
   end
