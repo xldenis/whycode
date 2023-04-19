@@ -253,37 +253,6 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
                 }
             },
         ],
-
-        // ['proof/changeTreeNode', params => {
-        // 	let node = trees.get(params.uri)!.getChild(params.id);
-        // 	console.log("update node ", params);
-        // 	if (params.info[0] == 'Proved' && node != undefined) {
-        // 		node.proved = params.info[1];
-        // 	};
-        // 	treeDataProvider.refresh();
-        // }],
-        // ['proof/removeTreeNode', params => {
-        // 	console.log("remove node", params);
-        // 	if (!trees.has(params.uri)) {
-        // 		trees.set(params.uri, new TaskTree());
-        // 	};
-
-        // 	trees.get(params.uri)!.remove(params.id);
-        // 	treeDataProvider.refresh();
-
-        // }],
-        // ['proof/addTreeNode', params => {
-        // 	let node = new GoalNode(params.uri, params.id, params.parent_id, params.name, false, []);
-        // 	if (!trees.has(params.uri)) {
-        // 		trees.set(params.uri, new TaskTree());
-        // 	};
-
-        // 	trees.get(params.uri)!.insertChild(params.parent_id, node);
-        // 	console.log("create node ", params);
-        // 	view.reveal(node);
-
-    // 	treeDataProvider.refresh();
-    // }],
     ];
 }
 
@@ -346,27 +315,6 @@ function setupServerEvents(config: Config) {
             });
         }
     });
-    // workspace.onDidChangeTextDocument((event) => {
-    //     if (event.contentChanges.length === 0) {
-    //         return;
-    //     }
-    //     // check if the document which changed is one we care about
-    //     // if so, forward that to the LSP server.
-    //     if (proofDocs.has(event.document.uri)) {
-    //         // This seems to only be for 'incremental sync'
-    //         client.sendNotification(
-    //             DidChangeTextDocumentNotification.type,
-    //             createConverter().asChangeTextDocumentParams(event)
-    //         );
-    //     }
-    // });
-    // workspace.onDidCloseTextDocument((e) => {
-    //     // vscode.window.showInformationMessage("Document Close!");
-    //     // If the document is in our list, then remove it.
-    //     proofDocs.delete(e.uri);
-    //     // And notify the server
-    //     client.sendNotification(DidCloseTextDocumentNotification.type, createConverter().asCloseTextDocumentParams(e));
-    // });
 }
 
 function setupTaskTree(context: ExtensionContext, client: LanguageClient) {

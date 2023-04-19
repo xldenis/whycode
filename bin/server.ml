@@ -22,11 +22,43 @@ let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
 
 (* Custom strategy runner with a final callback *)
 
+let get_goal_loc (task : Task.task) : Loc.position =
+  let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
+  let location =
+    match location with Some l -> l | None -> Option.get (Task.task_goal task).pr_name.id_loc
+  in
+
+  location
+
+(*
+  Get a set of files in a session.
+*)
+let located_files cont : Wstdlib.Sstr.t =
+  let open Wstdlib in
+  let open Session_itp in
+  let session = Controller.session cont in
+  let set = Sstr.empty in
+  let files = Session_itp.get_files session in
+  Hfile.fold
+    (fun _ file acc ->
+      List.fold_left
+        (fun acc th ->
+          List.fold_left
+            (fun acc g ->
+              let loc = get_goal_loc (get_task session g) in
+              let f, _, _, _, _ = Loc.get loc in
+              Sstr.add f acc)
+            acc (theory_goals th))
+        acc (file_theories file))
+    files set
+
 module SessionManager = struct
   open Whycode.Controller
 
   type manager = {
+    (* Maps files in the client to session paths *)
     path_to_id : (string, string) Hashtbl.t;
+    (* Maps paths to controllers *)
     id_to_controller : (string, Whycode.Controller.controller) Hashtbl.t;
   }
 
@@ -37,15 +69,55 @@ module SessionManager = struct
       let session = Hashtbl.find m.path_to_id id in
       (Hashtbl.find m.id_to_controller session, false)
     with Not_found ->
-      let cont, dir, fresh = Controller.from_file config env ~mkdir:true id in
+      (* Try to see if we have an existing controller which has a task that matches this file *)
+      let res =
+        Hashtbl.fold
+          (fun _ cont acc ->
+            if acc <> None then acc
+            else if Wstdlib.Sstr.mem id (located_files cont) then Some cont
+            else None)
+          m.id_to_controller None
+      in
+
+      let cont, dir, fresh =
+        match res with
+        (* Otherwie try to load a session *)
+        | None -> Controller.from_file config env ~mkdir:true id
+        | Some cont -> (cont, Session_itp.get_dir (Controller.session cont), false)
+      in
 
       Hashtbl.replace m.path_to_id id dir;
       Hashtbl.replace m.id_to_controller dir cont;
       (cont, fresh)
 
+  let find_or_load_controller (m : manager) config env (id : string) : controller =
+    try
+      let session = Hashtbl.find m.path_to_id id in
+      Hashtbl.find m.id_to_controller session
+    with Not_found ->
+      let cont, dir, _ = Controller.from_file config env ~mkdir:false id in
+
+      Hashtbl.replace m.path_to_id id dir;
+      Hashtbl.replace m.id_to_controller dir cont;
+      cont
+
   let find_controller (m : manager) id : controller =
     let session = Hashtbl.find m.path_to_id id in
     Hashtbl.find m.id_to_controller session
+
+  let close_file (m : manager) (path : string) : bool =
+    if Hashtbl.mem m.path_to_id path then begin
+      let id = Hashtbl.find m.path_to_id path in
+      Hashtbl.remove m.path_to_id path;
+      let cont = Hashtbl.find m.id_to_controller id in
+      (* Check if we have an open file with this session *)
+      let other_files =
+        Wstdlib.Sstr.exists (fun file -> Hashtbl.mem m.path_to_id file) (located_files cont)
+      in
+      if not other_files then Hashtbl.remove m.id_to_controller id;
+      not other_files
+    end
+    else false
 end
 
 let relativize session_dir f =
@@ -53,14 +125,6 @@ let relativize session_dir f =
   let path = Sysutil.relativize_filename session_dir f in
   let g = Sysutil.system_dependent_absolute_path session_dir path in
   g
-
-let get_goal_loc (task : Task.task) : Loc.position =
-  let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
-  let location =
-    match location with Some l -> l | None -> Option.get (Task.task_goal task).pr_name.id_loc
-  in
-
-  location
 
 let unproved_leaf_nodes c = Whycode.Controller.unproved_tasks c
 
@@ -254,11 +318,12 @@ class why_lsp_server () =
           self#send_diags notify_back (errors_to_diagnostics cont es)
       with Not_found -> return ()
 
+    method on_notif_doc_did_close ~notify_back id =
+      let closed = SessionManager.close_file manager (DocumentUri.to_path id.uri) in
+      if closed then log_info notify_back "Closed session" else return ()
+
     method on_notif_doc_did_open ~notify_back d ~content:_ = self#_on_doc ~notify_back d.uri
     method on_notif_doc_did_change ~notify_back:_ _ _ ~old_content:_ ~new_content:_ = return ()
-
-    (* TODO: keey a mapping of which files are related to which sessions and use that here *)
-    method on_notif_doc_did_close ~notify_back:_ _ = return ()
 
     method! on_req_initialize ~notify_back params =
       let open Whyconf in
@@ -327,8 +392,8 @@ class why_lsp_server () =
         | None -> Controller.unproved_tasks cont
       in
 
-      let promises =
-        List.map
+      let* () =
+        Lwt_list.iter_p
           (fun id ->
             match kind with
             | Strategy _ -> Controller.run_strategy cont n.command id
@@ -336,8 +401,6 @@ class why_lsp_server () =
             | Prover _ -> failwith "Not yet implemented")
           ids
       in
-      let* _ = Lwt.join promises in
-
       let* _ = log_info notify_back "Done!" in
 
       let* _ = self#update_client notify_back cont in
@@ -359,17 +422,10 @@ class why_lsp_server () =
       with Not_found -> return ()
 
     method private on_did_change_notif ~notify_back (n : DidChangeWatchedFilesParams.t) =
-      let _ =
-        List.iter
-          (fun (fe : FileEvent.t) ->
-            match fe.type_ with
-            | Changed ->
-                let _ = self#_on_doc ~notify_back fe.uri in
-                ()
-            | _ -> ())
-          n.changes
-      in
-      return ()
+      Lwt_list.iter_p
+        (fun (fe : FileEvent.t) ->
+          match fe.type_ with Changed -> self#_on_doc ~notify_back fe.uri | _ -> return ())
+        n.changes
 
     method private update_client notify (cont : Controller.controller) =
       let diags = gather_diagnostics_list cont in
