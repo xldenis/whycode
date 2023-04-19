@@ -171,16 +171,41 @@ let identify_cmd env config strats cmd : command =
     | Some _ -> Prover cmd
     | None -> if List.mem cmd strats then Strategy cmd else raise Not_found)
 
+let save_default_config config =
+  let open Autodetection in
+  let data = read_auto_detection_data config in
+  let provers = find_provers data in
+  let provers =
+    List.map
+      (fun (path, name, version) ->
+        { Partial.name; path; version; shortcut = None; manual = false })
+      provers
+  in
+  ignore (compute_builtin_prover provers config data);
+  let config = remove_auto_provers config in
+  let config = update_provers provers config in
+  (* let config = Whyconf.User.set_dirs ~libdir:Config.libdir ~datadir:Config.datadir config in *)
+  Format.printf "Save config to %s@." (Whyconf.get_conf_file config);
+  Whyconf.save_config config;
+  config
+
 class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
+
   let config', env' = Whyconf.Args.initialize cli_opts (fun _ -> ()) usage_str in
+
+  let config' =
+    if not (Sys.file_exists (Whyconf.get_conf_file config')) then save_default_config config'
+    else config'
+  in
+
   let _ =
     Controller_itp.set_session_max_tasks (Whyconf.running_provers_max (Whyconf.get_main config'))
   in
 
   object (self)
-    inherit Linol_lwt.Jsonrpc2.server
+    inherit Linol_lwt.Jsonrpc2.server as super
     val mutable config = config'
     val mutable env = env'
     val manager = SessionManager.create ()
@@ -207,6 +232,17 @@ class why_lsp_server () =
 
     (* TODO: keey a mapping of which files are related to which sessions and use that here *)
     method on_notif_doc_did_close ~notify_back:_ _ = return ()
+
+    method! on_req_initialize ~notify_back params =
+      let open Whyconf in
+      let* _ =
+        if Whyconf.get_provers config |> Mprover.is_empty then
+          notify_back#send_notification
+            (ShowMessage
+               (ShowMessageParams.create ~message:"No provers configured!" ~type_:MessageType.Error))
+        else return ()
+      in
+      super#on_req_initialize ~notify_back params
 
     method! on_req_code_action ~notify_back:_ ~id:_ c =
       try

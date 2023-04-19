@@ -11,6 +11,7 @@ import {
     ServerOptions,
 } from "vscode-languageclient/node";
 import { TaskDataProvider, TaskNode, TaskTree, treeElem } from "./tree";
+import { access, existsSync } from "fs";
 
 let client: LanguageClient;
 
@@ -280,6 +281,9 @@ async function startServer(config: Config, context: ExtensionContext): Promise<L
     const outputChannel = vscode.window.createOutputChannel("WhyCode Server");
     const traceOutputChannel = vscode.window.createOutputChannel("Whycode Server Trace");
 
+    if (!existsSync(serverPath)) {
+        throw "WhyCode server not found";
+    }
     const run = {
         command: serverPath,
         args: serverArgs,
@@ -402,22 +406,34 @@ function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
 }
 
 export async function activate(context: ExtensionContext) {
-    vscode.window.showInformationMessage("Whycode loaded");
-    const config = new Config(context);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    client = await startServer(config, context);
+    try {
+        const config = new Config(context);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        client = await startServer(config, context);
 
-    setupServerEvents(config);
-    setupTaskTree(context, client);
+        setupServerEvents(config);
+        setupTaskTree(context, client);
 
-    const provider = new TaskProvider(client);
+        const provider = new TaskProvider(client);
 
-    workspace.registerTextDocumentContentProvider(TaskProvider.scheme, provider);
+        workspace.registerTextDocumentContentProvider(TaskProvider.scheme, provider);
 
-    buildCommands().forEach(([name, command]) => {
-        const disposable = vscode.commands.registerCommand(name, command);
-        context.subscriptions.push(disposable);
-    });
+        buildCommands().forEach(([name, command]) => {
+            const disposable = vscode.commands.registerCommand(name, command);
+            context.subscriptions.push(disposable);
+        });
+        vscode.window.showInformationMessage("Whycode loaded");
+    } catch (e) {
+        let message: string;
+        if (typeof e === "string") {
+            message = e;
+        } else if (e instanceof Error) {
+            message = e.message;
+        } else {
+            message = "Unknown error occured";
+        }
+        vscode.window.showErrorMessage(message);
+    }
 }
 
 export function deactivate(): Thenable<void> | undefined {
