@@ -46,7 +46,8 @@ let located_files cont : Wstdlib.Sstr.t =
               let f, _, _, _, _ = Loc.get loc in
               Sstr.add f acc)
             acc (theory_goals th))
-        (Sstr.add (system_path session file) acc) (file_theories file))
+        (Sstr.add (system_path session file) acc)
+        (file_theories file))
     files set
 
 module SessionManager = struct
@@ -307,7 +308,9 @@ class why_lsp_server () =
     method private _on_doc ~(notify_back : Linol_lwt.Jsonrpc2.notify_back)
         (uri : Lsp.Types.DocumentUri.t) =
       try
-        let cont = SessionManager.find_controller manager (DocumentUri.to_path uri) in
+        let cont =
+          SessionManager.find_or_load_controller manager config env (DocumentUri.to_path uri)
+        in
         try
           Whycode.Controller.reload cont;
           self#update_client notify_back cont
