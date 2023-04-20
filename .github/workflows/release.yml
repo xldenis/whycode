@@ -32,6 +32,9 @@ jobs:
           - os: ubuntu-latest
             code-target: linux-x64
 
+          - os: ubuntu-latest
+            code-target: no-server
+
           - os: macos-latest
             code-target: darwin-arm64
 
@@ -94,12 +97,12 @@ jobs:
 
       - name: Package
         run: npx vsce package -o "../dist/whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }}
-        if: github.ref == 'refs/heads/release' && matrix.code_target != 'no-server'
+        if: github.ref == 'refs/heads/release' && matrix.code-target != 'no-server'
         working-directory: ide
 
       - name: Package (Nightly)
         run: npx vsce package -o "../dist/whycode-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }} --pre-release
-        if: github.ref != 'refs/heads/release' && matrix.code_target != 'no-server'
+        if: github.ref != 'refs/heads/release' && matrix.code-target != 'no-server'
         working-directory: ide
 
       # Publish fallback
@@ -135,6 +138,17 @@ jobs:
         with:
           name: darwin-arm64
           path: dist
+
+      - uses: actions/download-artifact@v1
+        with:
+          name: darwin-x86
+          path: dist
+
+      - uses: actions/download-artifact@v1
+        with:
+          name: darwin-arm64
+          path: dist
+
       - uses: actions/download-artifact@v1
         with:
           name: linux-x64
