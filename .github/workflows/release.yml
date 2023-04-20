@@ -141,7 +141,7 @@ jobs:
 
       - uses: actions/download-artifact@v1
         with:
-          name: darwin-x86
+          name: darwin-x64
           path: dist
 
       - uses: actions/download-artifact@v1
