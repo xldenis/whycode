@@ -8,19 +8,10 @@ let warn loc message =
 
 let error loc message =
   Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Error ~source:"Why3" ~message
-(* TODO
-   1. Kill whole server when one of the various async tasks dies
-   2. Reduce the need to spawn as much?
-*)
 
 open Linol_lwt
 
 let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
-
-(* TODO: An Lwt Scheduler *)
-(* module S = Unix_scheduler.Unix_scheduler *)
-
-(* Custom strategy runner with a final callback *)
 
 let get_goal_loc (task : Task.task) : Loc.position =
   let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
@@ -31,7 +22,13 @@ let get_goal_loc (task : Task.task) : Loc.position =
   location
 
 (*
-  Get a set of files in a session.
+  Get a set of files referred to in a session.
+
+  This is the union of the files in the locations of the theories with the
+  actual files that compose the session.
+
+  For a Rust program this would the MLCFG files + the Rust files.
+
 *)
 let located_files cont : Wstdlib.Sstr.t =
   let open Wstdlib in
@@ -49,7 +46,7 @@ let located_files cont : Wstdlib.Sstr.t =
               let f, _, _, _, _ = Loc.get loc in
               Sstr.add f acc)
             acc (theory_goals th))
-        acc (file_theories file))
+        (Sstr.add (system_path session file) acc) (file_theories file))
     files set
 
 module SessionManager = struct
