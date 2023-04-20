@@ -106,12 +106,12 @@ jobs:
         working-directory: ide
 
       # Publish fallback
-      - if: matrix.code_target == 'no-server' && github.ref == 'refs/heads/release'
-        run: npx vsce package -o ../../dist/whycode-no-server.vsix
+      - if: matrix.code-target == 'no-server' && github.ref == 'refs/heads/release'
+        run: npx vsce package -o ../dist/whycode-no-server.vsix
         working-directory: ide
 
-      - if: matrix.code_target == 'no-server' && github.ref != 'refs/heads/release'
-        run: npx vsce package -o ../../dist/whycode-no-server.vsix --pre-release
+      - if: matrix.code-target == 'no-server' && github.ref != 'refs/heads/release'
+        run: npx vsce package -o ../dist/whycode-no-server.vsix --pre-release
         working-directory: ide
 
       - name: Upload artifacts
