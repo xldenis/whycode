@@ -5,11 +5,11 @@ let count (a : array 'a) : int32 =
   requires { false }
     let ref i  = 0 in
     while i < a.length do
-        variant { a.length - i }  
+        variant { a.length - i }
         i <- i + 1
     done;
     i
-    
- 
+
+
  let x (a : array int) =
   count a
