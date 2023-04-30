@@ -1,33 +1,68 @@
 local whycode = {}
 
+local the_client
+local buf = require("whycode.buffers")
+
+function whycode.stop()
+  assert(the_client)
+  the_client.stop(true)
+  the_client = nil
+  for bufnr, _ in pairs(buf.buffers) do
+    buf.unregister(bufnr)
+  end
+  vim.api.nvim_clear_autocmds({ group = buf.au })
+end
+
+local function make_on_attach(user_on_attach)
+  return function(client, bufnr)
+    if not the_client then
+      the_client = client
+    elseif the_client ~= client then
+      error("why3 client must be unique")
+    end
+    if not buf.buffers[bufnr] then
+      buf.register(bufnr)
+      require("whycode.handlers").define_handlers()
+    end
+    if user_on_attach then
+      user_on_attach(client, bufnr)
+    end
+  end
+end
+
 function whycode.setup(opts)
 
-  local configs = opts.lspconfig 
-  local lsp = opts.lsp
-  local cmd = opts.cmd
-  local on_attach = opts.on_attach
+  opts = opts or {}
+  opts.lsp = opts.lsp or {}
+  opts.lsp.cmd = opts.lsp.cmd or function() error("erreur cmd lsp") end
+
+  local lsp = require("lspconfig")
+  local util = require("lspconfig.util")
+  local configs = require("lspconfig.configs")
+
+  local user_on_attach = opts.lsp.on_attach
+  opts.lsp.on_attach = make_on_attach(user_on_attach)
 
   if not configs["why3"] then
     configs["why3"] = {
       default_config = {
         autostart = true,
-        cmd = cmd,
+        cmd = opts.lsp.cmd,
         filetypes = { "why3" },
         root_dir = function(fname)
-          return lsp.util.find_git_ancestor(fname) or vim.loop.os_homedir()
+          return util.find_git_ancestor(fname) or vim.loop.os_homedir()
         end;
         settings = {},
       },
     }
   end
 
-  if not lsp["why3"].document_config.default_config.cmd and not cmd then
+  if not lsp["why3"].document_config.default_config.cmd then
     print("You have not defined a server default cmd for a server that requires it please follow README instructions")
   end
 
   lsp["why3"].setup({
-    cmd = cmd,
-    on_attach = on_attach,
+    on_attach = opts.lsp.on_attach,
     filetypes = { "why3" },
   })
 
