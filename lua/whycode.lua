@@ -22,13 +22,14 @@ function whycode.setup(opts)
   end
 
   if not lsp["why3"].document_config.default_config.cmd and not cmd then
-    print [[You have not defined a server default cmd for a server that requires it please edit minimal_init.lua]]
+    print("You have not defined a server default cmd for a server that requires it please follow README instructions")
   end
 
-  lsp["why3"].setup {
+  lsp["why3"].setup({
     cmd = cmd,
     on_attach = on_attach,
-  }
+    filetypes = { "why3" },
+  })
 
 end
 

@@ -1,11 +1,11 @@
 # Neovim extension for Why3
 
-
-
 ## Prerequisites
 
-- Neovim
-- Neovim lsp extension: "neovim/nvim-lspconfig"
+- [Latest stable version of Neovim](https://github.com/neovim/neovim/releases/tag/stable)
+- The lsp neovim package: *neovim/nvim-lspconfig* (see [here](https://github.com/neovim/nvim-lspconfig))
+- WhyCode binary: download the last artifact for you distribution from the
+  [releases list](https://github.com/xldenis/whycode/actions)
 
 ## Installation
 - packer
@@ -20,17 +20,17 @@
 
 ## Configuration
 
-Add to your lsp configuration
+Add the following to your LSP configuration:
 
 ```lua
 local opts = {
-    cmd = { "$DEV/whycode/extension/whycode" }, --path to executable
-    lspconfig = require("lspconfig.configs"),
-    lsp = require("lspconfig")
+    cmd = { "path/to/artifact/binary" },      -- path to the executable from the artifact
+    lsp = require("lspconfig"),               -- idem
+    lspconfig = require("lspconfig.configs"), -- from lspconfig package
+    on_attach = ...
 }
 require("whycode").setup(opts)
 ```
-
 ## TODO
 
 - [ ] documentation
