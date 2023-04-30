@@ -36,3 +36,8 @@ require("whycode").setup(opts)
 - [ ] documentation
 - [ ] tasks view
 - [ ] tree view
+
+
+## Acknowledgment
+
+A lot a code is taken from [coq lsp for neovim](https://github.com/tomtomjhj/coq-lsp.nvim).
