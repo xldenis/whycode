@@ -1,3 +1,9 @@
+# TODO:
+# - Add support for contracts
+# - Add support for clone
+# - Add support for refactor grammar so it can be reused for mlcfg
+# - Add support for quantifiers implications, etc...
+
 fileTypes:
       - mlw
 foldingStartMarker: (\b(module)\s.*?=\s*$|\bbegin|sig|struct|\bwhile\s.*?\bdo\s*$|^let(?:\s+rec)?\s+[a-z_][a-zA-Z0-9_]*\s+(?!=)\S)
@@ -5,17 +11,6 @@ foldingStopMarker: (\bend(\s+in)?[ \t]*(;{1,2}|=)?|\bdone;?|^\s*;;|^\s*in)[ \t]*
 keyEquivalent: ^~O
 name: WhyML
 patterns:
-      - captures:
-              "1":
-                    name: keyword.other.module-binding.mlw
-              "2":
-                    name: keyword.other.module-definition.mlw
-              "3":
-                    name: support.other.module.mlw
-              "4":
-                    name: punctuation.separator.module-binding.mlw
-        match: \b(let)\s+(module)\s+([A-Z][a-zA-Z0-9'_]*)\s*(=)
-        name: meta.module.binding
       - begin: \b(let|and)\s+(?!\(\*)((rec\s+)([a-z_][a-zA-Z0-9_']*)\b|([a-z_][a-zA-Z0-9_']*|\([^)]+\))(?=\s)((?=\s*=\s*(?=fun(?:ction)\b))|(?!\s*=)))
         beginCaptures:
               "1":
@@ -38,6 +33,43 @@ patterns:
                     name: keyword.operator.mlw
         name: meta.function.mlw
         patterns:
+              - include: "#contracts"
+              - include: "#variables"
+      - begin: >
+              (?x)
+                 \b(predicate|function)\s+ 
+                 ([a-z_][a-zA-Z0-9_']*|\([^)]+\)) # function name
+                 (?=\s)
+                 (
+                       (?=\s*=\s*(?=fun(?:ction)\b)) # ??
+                       |(?!\s*=)
+                 )
+
+        beginCaptures:
+              "1":
+                    name: keyword.other.function-definition.mlw
+              "3":
+                    name: keyword.other.funtion-definition.mlw
+              "4":
+                    name: entity.name.function.mlw
+              "5":
+                    name: entity.name.function.mlw
+        end: >
+              (?x)
+              (?:(:)\s*([^=]+))? # return type
+              (?:(=))
+        endCaptures:
+              "1":
+                    name: punctuation.separator.function.type-constraint.mlw
+              "2":
+                    name: storage.type.mlw
+              "3":
+                    name: keyword.operator.mlw
+              "4":
+                    name: keyword.operator.mlw
+        name: meta.function.mlw
+        patterns:
+              - include: "#contracts"
               - include: "#variables"
       - begin: (\(|\s)(?=fun\s)
         beginCaptures:
@@ -77,7 +109,15 @@ patterns:
                 name: meta.type-definition.mlw
                 patterns:
                       - include: "#typedefs"
-      - begin: \b(with|function)(?=(\s*$|.*->))\b|((?<!\S)(\|)(?=(\w|\s).*->))
+      - begin: >
+            (?x)
+            \b (with|function)
+            (?=(\s*$|.*->))\b
+            | (
+                  (?<!\S)
+                  (\|)
+                  (?=(\w|\s).*->)
+            )
         beginCaptures:
               "1":
                     name: keyword.control.match-definition.mlw
@@ -139,29 +179,6 @@ patterns:
         match: ^[
               \t]*(module)\s+([A-Z_][a-zA-Z0-9'_]*)(?:\s*(:)\s*([A-Z][a-zA-Z0-9'_]*)?)?
         name: meta.module.mlw
-      - captures:
-              "1":
-                    name: keyword.other.module-type-definition.mlw
-              "2":
-                    name: entity.name.type.module-type.mlw
-        match: ^[ \t]*(module\s+type\s+)([A-Z][a-zA-Z0-9'_]*)
-        name: meta.module.type.mlw
-      - begin: \b(sig)\b
-        beginCaptures:
-              "1":
-                    name: keyword.other.module.signature.mlw
-        end: \b(end)\b
-        endCaptures:
-              "1":
-                    name: keyword.other.module.signature.mlw
-              "2":
-                    name: punctuation.terminator.expression.mlw
-              "3":
-                    name: keyword.operator.mlw
-        name: meta.module.signature.mlw
-        patterns:
-              - include: "#module-signature"
-              - include: $self
       - begin: \b(struct)\b
         beginCaptures:
               "1":
@@ -173,15 +190,14 @@ patterns:
         name: meta.module.structure.mlw
         patterns:
               - include: $self
-      - include: "#moduleref"
-      - begin: \b(open)\s+([A-Z][a-zA-Z0-9'_]*)(?=(\.[A-Z][a-zA-Z0-9_]*)*)
+      - begin: \b(use)\s+([A-Z][a-zA-Z0-9'_]*)(?=(\.[A-Z][a-zA-Z0-9_]*)*) # TODO: Fix this to be lower.lower.Upper
         beginCaptures:
               "1":
                     name: keyword.other.mlw
               "2":
                     name: support.other.module.mlw
         end: (\s|$)
-        name: meta.module.open.mlw
+        name: meta.module.use.mlw
         patterns:
               - captures:
                       "1":
@@ -208,21 +224,6 @@ patterns:
       - include: "#comments"
       - include: "#lists"
       - include: "#arrays"
-      - begin: (\()(?=(~[a-z][a-zA-Z0-9_]*:|("(\\"|[^"])*")|[^\(\)~"])+(?<!:)(:>|:(?![:=])))
-        beginCaptures:
-              "1":
-                    name: punctuation.section.type-constraint.mlw
-        end: (?<!:)(:>|:(?![:=]))(.*?)(\))
-        endCaptures:
-              "1":
-                    name: punctuation.separator.type-constraint.mlw
-              "2":
-                    name: storage.type.mlw
-              "3":
-                    name: punctuation.section.type-constraint.mlw
-        name: meta.type-constraint.mlw
-        patterns:
-              - include: $self
       - match: ^[ \t]*#[a-zA-Z]+
         name: keyword.other.directive.mlw
       - match: ^[ \t]*#[0-9]*
@@ -303,9 +304,8 @@ patterns:
         name: keyword.operator.mlw
       - match: \b(downto|if|else|match|then|to|when|with|try)\b
         name: keyword.control.mlw
-      - match: \b(as|assert|exception|in|let|module|mutable|rec|sig|struct|type)\b
+      - match: \b(as|assert|exception|in|let|function|predicate|module|mutable|rec|use|clone|sig|struct|type)\b
         name: keyword.other.mlw
-      - include: "#module-signature"
       - match: (’|‘|“|”)
         name: invalid.illegal.unrecognized-character.mlw
 repository:
@@ -408,94 +408,13 @@ repository:
                           - match: \|
                             name: punctuation.separator.match-option.mlw
                           - include: "#matchpatterns"
-                  - include: "#moduleref"
                   - include: "#constants"
                   - include: "#variables"
                   - include: $self
-      module-signature:
-            patterns:
-                  - begin: (val)\s+([a-z_][a-zA-Z0-9_']*)\s*(:)
-                    beginCaptures:
-                          "1":
-                                name: keyword.other.mlw
-                          "2":
-                                name: entity.name.type.value-signature.mlw
-                          "3":
-                                name: punctuation.separator.type-constraint.mlw
-                    end: (?=\b(type|val|module|end)\b)|^\s*$
-                    name: meta.module.signature.val.mlw
-                    patterns:
-                          - captures:
-                                  "1":
-                                        name: punctuation.definition.optional-parameter.mlw
-                                  "2":
-                                        name: entity.name.tag.label.optional.mlw
-                                  "3":
-                                        name: punctuation.separator.optional-parameter.mlw
-                            match: (\?)([a-z][a-zA-Z0-9_]*)\s*(:)
-                            name: variable.parameter.ameter.optional.mlw
-                          - begin: ([a-z][a-zA-Z0-9'_]*)\s*(:)\s*
-                            beginCaptures:
-                                  "1":
-                                        name: entity.name.tag.label.mlw
-                                  "2":
-                                        name: punctuation.separator.label.mlw
-                                  "3":
-                                        name: storage.type.mlw
-                            end: \s
-                            name: variable.parameter.labeled.mlw
-                            patterns:
-                                  - include: "#definite_storagetypes"
-                          - include: "#typedefs"
-                  - begin: (external)\s+([a-z_][a-zA-Z0-9_']*)\s*(:)
-                    beginCaptures:
-                          "1":
-                                name: keyword.other.mlw
-                          "2":
-                                name: entity.name.type.external-signature.mlw
-                          "3":
-                                name: punctuation.separator.type-constraint.mlw
-                    end: (?=\b(type|val|module|let|end)\b)|^\s*$
-                    name: meta.module.signature.external.mlw
-                    patterns:
-                          - captures:
-                                  "1":
-                                        name: punctuation.definition.optional-parameter.mlw
-                                  "2":
-                                        name: entity.name.tag.label.optional.mlw
-                                  "3":
-                                        name: punctuation.separator.optional-parameter.mlw
-                            match: (\?)([a-z][a-zA-Z0-9_]*)\s*(:)
-                            name: variable.parameter.optional.mlw
-                          - begin: (~)([a-z][a-zA-Z0-9'_]*)\s*(:)\s*
-                            beginCaptures:
-                                  "1":
-                                        name: punctuation.definition.labeled-parameter.mlw
-                                  "2":
-                                        name: entity.name.tag.label.mlw
-                                  "3":
-                                        name: punctuation.separator.label.mlw
-                            end: \s
-                            name: variable.parameter.labeled.mlw
-                            patterns:
-                                  - include: "#variables"
-                          - include: "#strings"
-                          - include: "#typedefs"
-      moduleref:
-            patterns:
-                  - beginCaptures:
-                          "1":
-                                name: support.other.module.mlw
-                          "2":
-                                name: punctuation.separator.module-reference.mlw
-                    match: \b([A-Z][a-zA-Z0-9'_]*)(\.)
-                    name: meta.module-reference.mlw
       storagetypes:
             patterns:
                   - match: \b(int|char|float|string|list|array|bool|unit|exn|option|int32|int64|nativeint|format4|lazy_t)\b
                     name: storage.type.mlw
-                  - match: "#[a-z_][a-zA-Z0-9_]*"
-                    name: storage.type.variant.polymorphic.mlw
       strings:
             patterns:
                   - begin: (?=[^\\])(")
@@ -543,12 +462,26 @@ repository:
                   - include: $self
                   - match: \|
                     name: punctuation.separator.algebraic-type.mlw
+      contracts:
+            patterns:
+                  - begin: (ensures|variant|requires)\s*(\{)
+                    end: (\})
+                    name: entity.contract.xxxxx
+                    beginCaptures:
+                          "1":
+                                name: keyword.other.function-definition.mlw
+                          "2":
+                                name: punctuation.definition.contract.mlw
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.contract.mlw
+                    patterns:
+                          - include: $self
       variables:
             patterns:
                   - match: \(\)
                     name: variable.parameter.unit.mlw
                   - include: "#constants"
-                  - include: "#moduleref"
                   - begin: (~)([a-z][a-zA-Z0-9'_]*)(\s*:\s*)?
                     beginCaptures:
                           "1":
@@ -585,27 +518,6 @@ repository:
                     name: variable.parameter.optional.mlw
                     patterns:
                           - include: $self
-                  - begin: (\()(?=(~[a-z][a-zA-Z0-9_]*:|("(\\"|[^"])*")|[^\(\)~"])+(?<!:)(:>|:(?![:=])))
-                    beginCaptures:
-                          "1":
-                                name: punctuation.section.type-constraint.mlw
-                    end: (\))
-                    endCaptures:
-                          "1":
-                                name: punctuation.section.type-constraint.mlw
-                    name: meta.parameter.type-constrained.mlw
-                    patterns:
-                          - begin: (?<!:)(:>|:(?![:=]))
-                            beginCaptures:
-                                  "1":
-                                        name: punctuation.separator.type-constraint.mlw
-                            end: (?=\))
-                            name: storage.type.mlw
-                            patterns:
-                                  - begin: \(
-                                    end: \)
-                                    name: meta.paren.group
-                          - include: "#variables"
                   - include: "#comments_inner"
                   - begin: \(
                     end: \)
@@ -636,7 +548,6 @@ repository:
                                 name: punctuation.definition.record.mlw
                     name: variable.parameter.record.mlw
                     patterns:
-                          - include: "#moduleref"
                           - begin: \b([a-z][a-zA-Z0-9'_]*)\s*(=)
                             beginCaptures:
                                   "1":
