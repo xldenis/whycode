@@ -1,6 +1,6 @@
 fileTypes:
       - mlw
-foldingStartMarker: (\b(module|class|)\s.*?=\s*$|\bbegin|sig|struct|(object(\s*\(_?[a-z]+\))?)\s*$|\bwhile\s.*?\bdo\s*$|^let(?:\s+rec)?\s+[a-z_][a-zA-Z0-9_]*\s+(?!=)\S)
+foldingStartMarker: (\b(module)\s.*?=\s*$|\bbegin|sig|struct|\bwhile\s.*?\bdo\s*$|^let(?:\s+rec)?\s+[a-z_][a-zA-Z0-9_]*\s+(?!=)\S)
 foldingStopMarker: (\bend(\s+in)?[ \t]*(;{1,2}|=)?|\bdone;?|^\s*;;|^\s*in)[ \t]*$
 keyEquivalent: ^~O
 name: WhyML
@@ -16,22 +16,6 @@ patterns:
                     name: punctuation.separator.module-binding.mlw
         match: \b(let)\s+(module)\s+([A-Z][a-zA-Z0-9'_]*)\s*(=)
         name: meta.module.binding
-      - begin: \b(let)\s+(open)\s+([A-Z][a-zA-Z0-9'_]*)(?=(\.[A-Z][a-zA-Z0-9_]*)*)
-        beginCaptures:
-              "1":
-                    name: keyword.other.module-binding.mlw
-              "2":
-                    name: keyword.other.mlw
-              "3":
-                    name: support.other.module.mlw
-        end: (\s|$)
-        name: meta.module.openbinding
-        patterns:
-              - captures:
-                      "1":
-                            name: punctuation.separator.module-reference.mlw
-                match: (\.)([A-Z][a-zA-Z0-9'_]*)
-                name: support.other.module.mlw
       - begin: \b(let|and)\s+(?!\(\*)((rec\s+)([a-z_][a-zA-Z0-9_']*)\b|([a-z_][a-zA-Z0-9_']*|\([^)]+\))(?=\s)((?=\s*=\s*(?=fun(?:ction)\b))|(?!\s*=)))
         beginCaptures:
               "1":
@@ -319,7 +303,7 @@ patterns:
         name: keyword.operator.mlw
       - match: \b(downto|if|else|match|then|to|when|with|try)\b
         name: keyword.control.mlw
-      - match: \b(as|assert|class|constraint|exception|functor|in|include|inherit|initializer|lazy|let|mod|module|mutable|new|object|open|private|rec|sig|struct|type|virtual)\b
+      - match: \b(as|assert|exception|in|let|module|mutable|rec|sig|struct|type)\b
         name: keyword.other.mlw
       - include: "#module-signature"
       - match: (’|‘|“|”)
@@ -438,7 +422,7 @@ repository:
                                 name: entity.name.type.value-signature.mlw
                           "3":
                                 name: punctuation.separator.type-constraint.mlw
-                    end: (?=\b(type|val|external|class|module|end)\b)|^\s*$
+                    end: (?=\b(type|val|module|end)\b)|^\s*$
                     name: meta.module.signature.val.mlw
                     patterns:
                           - captures:
@@ -471,7 +455,7 @@ repository:
                                 name: entity.name.type.external-signature.mlw
                           "3":
                                 name: punctuation.separator.type-constraint.mlw
-                    end: (?=\b(type|val|external|class|module|let|end)\b)|^\s*$
+                    end: (?=\b(type|val|module|let|end)\b)|^\s*$
                     name: meta.module.signature.external.mlw
                     patterns:
                           - captures:

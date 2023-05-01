@@ -2,88 +2,61 @@
   "fileTypes": [
     "mlw"
   ],
-  "foldingStartMarker": "(\\b(module|class|)\\s.*?=\\s*$|\\bbegin|sig|struct|(object(\\s*\\(_?[a-z]+\\))?)\\s*$|\\bwhile\\s.*?\\bdo\\s*$|^let(?:\\s+rec)?\\s+[a-z_][a-zA-Z0-9_]*\\s+(?!=)\\S)",
+  "foldingStartMarker": "(\\b(module)\\s.*?=\\s*$|\\bbegin|sig|struct|\\bwhile\\s.*?\\bdo\\s*$|^let(?:\\s+rec)?\\s+[a-z_][a-zA-Z0-9_]*\\s+(?!=)\\S)",
   "foldingStopMarker": "(\\bend(\\s+in)?[ \\t]*(;{1,2}|=)?|\\bdone;?|^\\s*;;|^\\s*in)[ \\t]*$",
   "keyEquivalent": "^~O",
-  "name": "OCaml",
+  "name": "WhyML",
   "patterns": [
     {
       "captures": {
         "1": {
-          "name": "keyword.other.module-binding.ocaml"
+          "name": "keyword.other.module-binding.mlw"
         },
         "2": {
-          "name": "keyword.other.module-definition.ocaml"
+          "name": "keyword.other.module-definition.mlw"
         },
         "3": {
-          "name": "support.other.module.ocaml"
+          "name": "support.other.module.mlw"
         },
         "4": {
-          "name": "punctuation.separator.module-binding.ocmal"
+          "name": "punctuation.separator.module-binding.mlw"
         }
       },
       "match": "\\b(let)\\s+(module)\\s+([A-Z][a-zA-Z0-9'_]*)\\s*(=)",
       "name": "meta.module.binding"
     },
     {
-      "begin": "\\b(let)\\s+(open)\\s+([A-Z][a-zA-Z0-9'_]*)(?=(\\.[A-Z][a-zA-Z0-9_]*)*)",
-      "beginCaptures": {
-        "1": {
-          "name": "keyword.other.module-binding.ocaml"
-        },
-        "2": {
-          "name": "keyword.other.ocaml"
-        },
-        "3": {
-          "name": "support.other.module.ocaml"
-        }
-      },
-      "end": "(\\s|$)",
-      "name": "meta.module.openbinding",
-      "patterns": [
-        {
-          "captures": {
-            "1": {
-              "name": "punctuation.separator.module-reference.ocaml"
-            }
-          },
-          "match": "(\\.)([A-Z][a-zA-Z0-9'_]*)",
-          "name": "support.other.module.ocaml"
-        }
-      ]
-    },
-    {
       "begin": "\\b(let|and)\\s+(?!\\(\\*)((rec\\s+)([a-z_][a-zA-Z0-9_']*)\\b|([a-z_][a-zA-Z0-9_']*|\\([^)]+\\))(?=\\s)((?=\\s*=\\s*(?=fun(?:ction)\\b))|(?!\\s*=)))",
       "beginCaptures": {
         "1": {
-          "name": "keyword.other.function-definition.ocaml"
+          "name": "keyword.other.function-definition.mlw"
         },
         "3": {
-          "name": "keyword.other.funtion-definition.ocaml"
+          "name": "keyword.other.funtion-definition.mlw"
         },
         "4": {
-          "name": "entity.name.function.ocaml"
+          "name": "entity.name.function.mlw"
         },
         "5": {
-          "name": "entity.name.function.ocaml"
+          "name": "entity.name.function.mlw"
         }
       },
       "end": "(?:(:)\\s*([^=]+))?(?:(=)|(=)\\s*(?=fun(?:ction)\\b))",
       "endCaptures": {
         "1": {
-          "name": "punctuation.separator.function.type-constraint.ocaml"
+          "name": "punctuation.separator.function.type-constraint.mlw"
         },
         "2": {
-          "name": "storage.type.ocaml"
+          "name": "storage.type.mlw"
         },
         "3": {
-          "name": "keyword.operator.ocaml"
+          "name": "keyword.operator.mlw"
         },
         "4": {
-          "name": "keyword.operator.ocaml"
+          "name": "keyword.operator.mlw"
         }
       },
-      "name": "meta.function.ocaml",
+      "name": "meta.function.mlw",
       "patterns": [
         {
           "include": "#variables"
@@ -94,31 +67,31 @@
       "begin": "(\\(|\\s)(?=fun\\s)",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.definition.function.anonymous.ocaml"
+          "name": "punctuation.definition.function.anonymous.mlw"
         }
       },
       "end": "(\\))",
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.function.anonymous.ocaml"
+          "name": "punctuation.definition.function.anonymous.mlw"
         }
       },
-      "name": "meta.function.anonymous.ocaml",
+      "name": "meta.function.anonymous.mlw",
       "patterns": [
         {
           "begin": "(?<=(\\(|\\s))(fun)\\s",
           "beginCaptures": {
             "2": {
-              "name": "keyword.other.function-definition.ocaml"
+              "name": "keyword.other.function-definition.mlw"
             }
           },
           "end": "(->)",
           "endCaptures": {
             "1": {
-              "name": "punctuation.separator.function-definition.ocaml"
+              "name": "punctuation.separator.function-definition.mlw"
             }
           },
-          "name": "meta.function.anonymous.definition.ocaml",
+          "name": "meta.function.anonymous.definition.mlw",
           "patterns": [
             {
               "include": "#variables"
@@ -133,23 +106,23 @@
     {
       "begin": "^\\s*(?=type\\s)",
       "end": "\\b(?=let|end|val)|^\\s*$",
-      "name": "meta.type-definition-group.ocaml",
+      "name": "meta.type-definition-group.mlw",
       "patterns": [
         {
           "begin": "\\b(type|and)\\s+([^=]*)(=)?",
           "beginCaptures": {
             "1": {
-              "name": "keyword.other.type-definition.ocaml"
+              "name": "keyword.other.type-definition.mlw"
             },
             "2": {
-              "name": "storage.type.ocaml"
+              "name": "storage.type.mlw"
             },
             "3": {
-              "name": "punctuation.separator.type-definition.ocaml"
+              "name": "punctuation.separator.type-definition.mlw"
             }
           },
           "end": "(?=\\b(type|and|let|end|val)\\b)|(?=^\\s*$)",
-          "name": "meta.type-definition.ocaml",
+          "name": "meta.type-definition.mlw",
           "patterns": [
             {
               "include": "#typedefs"
@@ -162,25 +135,25 @@
       "begin": "\\b(with|function)(?=(\\s*$|.*->))\\b|((?<!\\S)(\\|)(?=(\\w|\\s).*->))",
       "beginCaptures": {
         "1": {
-          "name": "keyword.control.match-definition.ocaml"
+          "name": "keyword.control.match-definition.mlw"
         },
         "2": {
-          "name": "keyword.other.function-definition.ocaml"
+          "name": "keyword.other.function-definition.mlw"
         },
         "3": {
-          "name": "keyword.control.match-definition.ocaml"
+          "name": "keyword.control.match-definition.mlw"
         }
       },
       "end": "(?:(->)|\\b(when)\\b|\\s(?=\\|))",
       "endCaptures": {
         "1": {
-          "name": "punctuation.separator.match-definition.ocaml"
+          "name": "punctuation.separator.match-definition.mlw"
         },
         "2": {
-          "name": "keyword.control.match-condition.ocaml"
+          "name": "keyword.control.match-condition.mlw"
         }
       },
-      "name": "meta.pattern-match.ocaml",
+      "name": "meta.pattern-match.mlw",
       "patterns": [
         {
           "include": "#matchpatterns"
@@ -188,126 +161,44 @@
       ]
     },
     {
-      "captures": {
-        "1": {
-          "name": "keyword.other.class-type-definition.ocaml"
-        },
-        "2": {
-          "name": "entity.name.type.class-type.ocaml"
-        },
-        "4": {
-          "name": "storage.type.ocaml"
-        }
-      },
-      "match": "^[ \\t]*(class\\s+type\\s+)((\\[\\s*('[A-Za-z][a-zA-Z0-9_']*(?:\\s*,\\s*'[A-Za-z][a-zA-Z0-9_']*)*)\\s*\\]\\s+)?[a-z_][a-zA-Z0-9'_]*)",
-      "name": "meta.class.type-definition.ocaml"
-    },
-    {
-      "begin": "^[ \\t]*(class)(?:\\s+(?!(?:virtual)\\s+))((\\[\\s*('[A-Za-z][a-zA-Z0-9_']*(?:\\s*,\\s*'[A-Za-z][a-zA-Z0-9_']*)*)\\s*\\]\\s+)?[a-z_][a-zA-Z0-9'_]*)",
-      "beginCaptures": {
-        "1": {
-          "name": "keyword.other.class-definition.ocaml"
-        },
-        "2": {
-          "name": "entity.name.type.class.ocaml"
-        },
-        "4": {
-          "name": "storage.type.ocaml"
-        }
-      },
-      "end": "(=)",
-      "endCaptures": {
-        "1": {
-          "name": "keyword.operator.ocaml"
-        }
-      },
-      "name": "meta.class.ocaml",
-      "patterns": [
-        {
-          "include": "#variables"
-        }
-      ]
-    },
-    {
-      "begin": "^[ \\t]*(class\\s+virtual\\s+)((\\[\\s*('[A-Za-z][a-zA-Z0-9_']*(?:\\s*,\\s*'[A-Za-z][a-zA-Z0-9_']*)*)\\s*\\]\\s+)?[a-z_][a-zA-Z0-9'_]*)",
-      "beginCaptures": {
-        "1": {
-          "name": "keyword.other.class-definition.ocaml"
-        },
-        "2": {
-          "name": "entity.name.type.class.ocaml"
-        },
-        "4": {
-          "name": "storage.type.ocaml"
-        }
-      },
-      "end": "(=)",
-      "endCaptures": {
-        "1": {
-          "name": "keyword.operator.ocaml"
-        }
-      },
-      "name": "meta.class.virtual.ocaml",
-      "patterns": [
-        {
-          "include": "#variables"
-        }
-      ]
-    },
-    {
-      "captures": {
-        "1": {
-          "name": "keyword.other.class-type-definition.ocaml"
-        },
-        "2": {
-          "name": "entity.name.type.class-type.ocaml"
-        },
-        "4": {
-          "name": "storage.type.ocaml"
-        }
-      },
-      "match": "^[ \\t]*(class\\s+type\\s+virtual)((\\[\\s*('[A-Za-z][a-zA-Z0-9_']*(?:\\s*,\\s*'[A-Za-z][a-zA-Z0-9_']*)*)\\s*\\]\\s+)?[a-z_][a-zA-Z0-9'_]*)",
-      "name": "meta.class.virtual.type-definition.ocaml"
-    },
-    {
       "begin": "(\\{)",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.definition.record.ocaml"
+          "name": "punctuation.definition.record.mlw"
         }
       },
       "end": "(\\})",
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.record.ocaml"
+          "name": "punctuation.definition.record.mlw"
         }
       },
-      "name": "meta.record.ocaml",
+      "name": "meta.record.mlw",
       "patterns": [
         {
           "match": "\\bwith\\b",
-          "name": "keyword.other.language.ocaml"
+          "name": "keyword.other.language.mlw"
         },
         {
           "begin": "(\\bmutable\\s+)?\\b([a-z_][a-zA-Z0-9_']*)\\s*(:)",
           "beginCaptures": {
             "1": {
-              "name": "keyword.other.storage.modifier.ocaml"
+              "name": "keyword.other.storage.modifier.mlw"
             },
             "2": {
-              "name": "source.ocaml"
+              "name": "source.mlw"
             },
             "3": {
-              "name": "punctuation.definition.record.ocaml"
+              "name": "punctuation.definition.record.mlw"
             }
           },
           "end": "(;|(?=}))",
           "endCaptures": {
             "1": {
-              "name": "keyword.operator.ocaml"
+              "name": "keyword.operator.mlw"
             }
           },
-          "name": "meta.record.definition.ocaml",
+          "name": "meta.record.definition.mlw",
           "patterns": [
             {
               "include": "#typedefs"
@@ -320,152 +211,64 @@
       ]
     },
     {
-      "begin": "\\b(object)\\s*(?:(\\()(_?[a-z]+)(\\)))?\\s*$",
-      "beginCaptures": {
-        "1": {
-          "name": "keyword.other.object-definition.ocaml"
-        },
-        "2": {
-          "name": "punctuation.definition.self-binding.ocaml"
-        },
-        "3": {
-          "name": "entity.name.type.self-binding.ocaml"
-        },
-        "4": {
-          "name": "punctuation.definition.self-binding.ocaml"
-        }
-      },
-      "end": "\\b(end)\\b",
-      "endCaptures": {
-        "1": {
-          "name": "keyword.control.object.ocaml"
-        },
-        "2": {
-          "name": "punctuation.terminator.expression.ocaml"
-        }
-      },
-      "name": "meta.object.ocaml",
-      "patterns": [
-        {
-          "begin": "\\b(method)\\s+(virtual\\s+)?(private\\s+)?([a-z_][a-zA-Z0-9'_]*)",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.other.method-definition.ocaml"
-            },
-            "2": {
-              "name": "keyword.other.method-definition.ocaml"
-            },
-            "3": {
-              "name": "keyword.other.method-restriction.ocaml"
-            },
-            "4": {
-              "name": "entity.name.function.method.ocaml"
-            }
-          },
-          "end": "(=|:)",
-          "endCaptures": {
-            "1": {
-              "name": "keyword.operator.ocaml"
-            }
-          },
-          "name": "meta.method.ocaml",
-          "patterns": [
-            {
-              "include": "#variables"
-            }
-          ]
-        },
-        {
-          "begin": "(constraint)\\s+([a-z_'][a-zA-Z0-9'_]*)\\s+(=)",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.other.language.ocaml"
-            },
-            "2": {
-              "name": "storage.type.ocaml"
-            },
-            "3": {
-              "name": "keyword.operator.ocaml"
-            }
-          },
-          "end": "(#[a-z_][a-zA-Z0-9'_]*)|(int|char|float|string|list|array|bool|unit|exn|option|int32|int64|nativeint|format4|lazy_t)|([a-z_][a-zA-Z0-9'_]*)\\s*$",
-          "endCaptures": {
-            "1": {
-              "name": "storage.type.polymorphic-variant.ocaml"
-            },
-            "2": {
-              "name": "storage.type.ocaml"
-            },
-            "3": {
-              "name": "storage.type.ocaml"
-            }
-          },
-          "name": "meta.object.type-constraint.ocaml"
-        },
-        {
-          "include": "$self"
-        }
-      ]
-    },
-    {
       "captures": {
         "1": {
-          "name": "punctuation.separator.method-call.ocaml"
+          "name": "punctuation.separator.method-call.mlw"
         }
       },
       "match": "(?<=\\w|\\)|')(#)[a-z_][a-zA-Z0-9'_]*",
-      "name": "meta.method-call.ocaml"
+      "name": "meta.method-call.mlw"
     },
     {
       "captures": {
         "1": {
-          "name": "keyword.other.module-definition.ocaml"
+          "name": "keyword.other.module-definition.mlw"
         },
         "2": {
-          "name": "entity.name.type.module.ocaml"
+          "name": "entity.name.type.module.mlw"
         },
         "3": {
-          "name": "punctuation.separator.module-definition.ocaml"
+          "name": "punctuation.separator.module-definition.mlw"
         },
         "4": {
-          "name": "entity.name.type.module-type.ocaml"
+          "name": "entity.name.type.module-type.mlw"
         }
       },
       "match": "^[ \\t]*(module)\\s+([A-Z_][a-zA-Z0-9'_]*)(?:\\s*(:)\\s*([A-Z][a-zA-Z0-9'_]*)?)?",
-      "name": "meta.module.ocaml"
+      "name": "meta.module.mlw"
     },
     {
       "captures": {
         "1": {
-          "name": "keyword.other.module-type-definition.ocaml"
+          "name": "keyword.other.module-type-definition.mlw"
         },
         "2": {
-          "name": "entity.name.type.module-type.ocaml"
+          "name": "entity.name.type.module-type.mlw"
         }
       },
       "match": "^[ \\t]*(module\\s+type\\s+)([A-Z][a-zA-Z0-9'_]*)",
-      "name": "meta.module.type.ocaml"
+      "name": "meta.module.type.mlw"
     },
     {
       "begin": "\\b(sig)\\b",
       "beginCaptures": {
         "1": {
-          "name": "keyword.other.module.signature.ocaml"
+          "name": "keyword.other.module.signature.mlw"
         }
       },
       "end": "\\b(end)\\b",
       "endCaptures": {
         "1": {
-          "name": "keyword.other.module.signature.ocaml"
+          "name": "keyword.other.module.signature.mlw"
         },
         "2": {
-          "name": "punctuation.terminator.expression.ocaml"
+          "name": "punctuation.terminator.expression.mlw"
         },
         "3": {
-          "name": "keyword.operator.ocaml"
+          "name": "keyword.operator.mlw"
         }
       },
-      "name": "meta.module.signature.ocaml",
+      "name": "meta.module.signature.mlw",
       "patterns": [
         {
           "include": "#module-signature"
@@ -479,16 +282,16 @@
       "begin": "\\b(struct)\\b",
       "beginCaptures": {
         "1": {
-          "name": "keyword.other.module.structure.ocaml"
+          "name": "keyword.other.module.structure.mlw"
         }
       },
       "end": "\\b(end)\\b",
       "endCaptures": {
         "1": {
-          "name": "keyword.other.module.structure.ocaml"
+          "name": "keyword.other.module.structure.mlw"
         }
       },
-      "name": "meta.module.structure.ocaml",
+      "name": "meta.module.structure.mlw",
       "patterns": [
         {
           "include": "$self"
@@ -502,50 +305,50 @@
       "begin": "\\b(open)\\s+([A-Z][a-zA-Z0-9'_]*)(?=(\\.[A-Z][a-zA-Z0-9_]*)*)",
       "beginCaptures": {
         "1": {
-          "name": "keyword.other.ocaml"
+          "name": "keyword.other.mlw"
         },
         "2": {
-          "name": "support.other.module.ocaml"
+          "name": "support.other.module.mlw"
         }
       },
       "end": "(\\s|$)",
-      "name": "meta.module.open.ocaml",
+      "name": "meta.module.open.mlw",
       "patterns": [
         {
           "captures": {
             "1": {
-              "name": "punctuation.separator.module-reference.ocaml"
+              "name": "punctuation.separator.module-reference.mlw"
             }
           },
           "match": "(\\.)([A-Z][a-zA-Z0-9'_]*)",
-          "name": "support.other.module.ocaml"
+          "name": "support.other.module.mlw"
         }
       ]
     },
     {
       "captures": {
         "1": {
-          "name": "keyword.other.ocaml"
+          "name": "keyword.other.mlw"
         },
         "2": {
-          "name": "entity.name.type.exception.ocaml"
+          "name": "entity.name.type.exception.mlw"
         }
       },
       "match": "\\b(exception)\\s+([A-Z][a-zA-Z0-9'_]*)\\b",
-      "name": "meta.exception.ocaml"
+      "name": "meta.exception.mlw"
     },
     {
       "begin": "(?=(\\[<)(?![^\\[]+?[^>]]))",
       "end": "(>])",
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.camlp4-stream.ocaml"
+          "name": "punctuation.definition.camlp4-stream.mlw"
         }
       },
-      "name": "source.camlp4.embedded.ocaml",
+      "name": "source.camlp4.embedded.mlw",
       "patterns": [
         {
-          "include": "source.camlp4.ocaml"
+          "include": "source.camlp4.mlw"
         }
       ]
     },
@@ -568,22 +371,22 @@
       "begin": "(\\()(?=(~[a-z][a-zA-Z0-9_]*:|(\"(\\\\\"|[^\"])*\")|[^\\(\\)~\"])+(?<!:)(:>|:(?![:=])))",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.section.type-constraint.ocaml"
+          "name": "punctuation.section.type-constraint.mlw"
         }
       },
       "end": "(?<!:)(:>|:(?![:=]))(.*?)(\\))",
       "endCaptures": {
         "1": {
-          "name": "punctuation.separator.type-constraint.ocaml"
+          "name": "punctuation.separator.type-constraint.mlw"
         },
         "2": {
-          "name": "storage.type.ocaml"
+          "name": "storage.type.mlw"
         },
         "3": {
-          "name": "punctuation.section.type-constraint.ocaml"
+          "name": "punctuation.section.type-constraint.mlw"
         }
       },
-      "name": "meta.type-constraint.ocaml",
+      "name": "meta.type-constraint.mlw",
       "patterns": [
         {
           "include": "$self"
@@ -592,86 +395,86 @@
     },
     {
       "match": "^[ \\t]*#[a-zA-Z]+",
-      "name": "keyword.other.directive.ocaml"
+      "name": "keyword.other.directive.mlw"
     },
     {
       "match": "^[ \\t]*#[0-9]*",
-      "name": "keyword.other.directive.line-number.ocaml"
+      "name": "keyword.other.directive.line-number.mlw"
     },
     {
       "include": "#storagetypes"
     },
     {
       "match": "\\b(mutable|ref)\\b",
-      "name": "keyword.other.storage.modifier.ocaml"
+      "name": "keyword.other.storage.modifier.mlw"
     },
     {
       "match": "`[A-Za-z][a-zA-Z0-9'_]*\\b",
-      "name": "entity.name.type.variant.polymorphic.ocaml"
+      "name": "entity.name.type.variant.polymorphic.mlw"
     },
     {
       "match": "\\b[A-Z][a-zA-Z0-9'_]*\\b",
-      "name": "entity.name.type.variant.ocaml"
+      "name": "entity.name.type.variant.mlw"
     },
     {
       "match": "!=|:=|>|<",
-      "name": "keyword.operator.symbol.ocaml"
+      "name": "keyword.operator.symbol.mlw"
     },
     {
       "match": "[*+/-]\\.",
-      "name": "keyword.operator.infix.floating-point.ocaml"
+      "name": "keyword.operator.infix.floating-point.mlw"
     },
     {
       "match": "~-\\.",
-      "name": "keyword.operator.prefix.floating-point.ocaml"
+      "name": "keyword.operator.prefix.floating-point.mlw"
     },
     {
       "match": "::",
-      "name": "punctuation.definition.list.constructor.ocaml"
+      "name": "punctuation.definition.list.constructor.mlw"
     },
     {
       "match": ";;",
-      "name": "punctuation.terminator.expression.ocaml"
+      "name": "punctuation.terminator.expression.mlw"
     },
     {
       "match": ";",
-      "name": "punctuation.separator.ocaml"
+      "name": "punctuation.separator.mlw"
     },
     {
       "match": "->",
-      "name": "punctuation.separator.function-return.ocaml"
+      "name": "punctuation.separator.function-return.mlw"
     },
     {
       "match": "[=<>@^&+\\-*/$%|][|!$%&*+./:<=>?@^~-]*",
-      "name": "keyword.operator.infix.ocaml"
+      "name": "keyword.operator.infix.mlw"
     },
     {
       "match": "\\bnot\\b|!|[!\\?~][!$%&*+./:<=>?@^~-]+",
-      "name": "keyword.operator.prefix.ocaml"
+      "name": "keyword.operator.prefix.mlw"
     },
     {
       "captures": {
         "1": {
-          "name": "punctuation.separator.argument-label.ocaml"
+          "name": "punctuation.separator.argument-label.mlw"
         }
       },
       "match": "~[a-z][a-z0-9'_]*(:)?",
-      "name": "entity.name.tag.label.ocaml"
+      "name": "entity.name.tag.label.mlw"
     },
     {
       "begin": "\\b(begin)\\b",
       "beginCaptures": {
         "1": {
-          "name": "keyword.control.begin-end.ocaml"
+          "name": "keyword.control.begin-end.mlw"
         }
       },
       "end": "\\b(end)\\b",
       "endCaptures": {
         "1": {
-          "name": "keyword.control.begin-end.ocaml"
+          "name": "keyword.control.begin-end.mlw"
         }
       },
-      "name": "meta.begin-end-group.ocaml",
+      "name": "meta.begin-end-group.mlw",
       "patterns": [
         {
           "include": "$self"
@@ -682,20 +485,20 @@
       "begin": "\\b(for)\\b",
       "beginCaptures": {
         "1": {
-          "name": "keyword.control.for-loop.ocaml"
+          "name": "keyword.control.for-loop.mlw"
         }
       },
       "end": "\\b(done)\\b",
       "endCaptures": {
         "1": {
-          "name": "keyword.control.for-loop.ocaml"
+          "name": "keyword.control.for-loop.mlw"
         }
       },
-      "name": "meta.for-loop.ocaml",
+      "name": "meta.for-loop.mlw",
       "patterns": [
         {
           "match": "\\bdo\\b",
-          "name": "keyword.control.loop.ocaml"
+          "name": "keyword.control.loop.mlw"
         },
         {
           "include": "$self"
@@ -706,20 +509,20 @@
       "begin": "\\b(while)\\b",
       "beginCaptures": {
         "1": {
-          "name": "keyword.control.while-loop.ocaml"
+          "name": "keyword.control.while-loop.mlw"
         }
       },
       "end": "\\b(done)\\b",
       "endCaptures": {
         "1": {
-          "name": "keyword.control.while-loop.ocaml"
+          "name": "keyword.control.while-loop.mlw"
         }
       },
-      "name": "meta.while-loop.ocaml",
+      "name": "meta.while-loop.mlw",
       "patterns": [
         {
           "match": "\\bdo\\b",
-          "name": "keyword.control.loop.ocaml"
+          "name": "keyword.control.loop.mlw"
         },
         {
           "include": "$self"
@@ -729,7 +532,7 @@
     {
       "begin": "\\(",
       "end": "\\)",
-      "name": "meta.paren-group.ocaml",
+      "name": "meta.paren-group.mlw",
       "patterns": [
         {
           "include": "$self"
@@ -738,22 +541,22 @@
     },
     {
       "match": "\\b(and|land|lor|lsl|lsr|asr|lnot|lxor|mod|or)\\b",
-      "name": "keyword.operator.ocaml"
+      "name": "keyword.operator.mlw"
     },
     {
       "match": "\\b(downto|if|else|match|then|to|when|with|try)\\b",
-      "name": "keyword.control.ocaml"
+      "name": "keyword.control.mlw"
     },
     {
-      "match": "\\b(as|assert|class|constraint|exception|functor|in|include|inherit|initializer|lazy|let|mod|module|mutable|new|object|open|private|rec|sig|struct|type|virtual)\\b",
-      "name": "keyword.other.ocaml"
+      "match": "\\b(as|assert|exception|in|let|module|mutable|rec|sig|struct|type)\\b",
+      "name": "keyword.other.mlw"
     },
     {
       "include": "#module-signature"
     },
     {
       "match": "(’|‘|“|”)",
-      "name": "invalid.illegal.unrecognized-character.ocaml"
+      "name": "invalid.illegal.unrecognized-character.mlw"
     }
   ],
   "repository": {
@@ -763,16 +566,16 @@
           "begin": "(\\[\\|)",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.array.begin.ocaml"
+              "name": "punctuation.definition.array.begin.mlw"
             }
           },
           "end": "(\\|])",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.array.end.ocaml"
+              "name": "punctuation.definition.array.end.mlw"
             }
           },
-          "name": "meta.array.ocaml",
+          "name": "meta.array.mlw",
           "patterns": [
             {
               "include": "#arrays"
@@ -790,16 +593,16 @@
           "begin": "\\(\\*",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.comment.begin.ocaml"
+              "name": "punctuation.definition.comment.begin.mlw"
             }
           },
           "end": "\\*\\)",
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.comment.end.ocaml"
+              "name": "punctuation.definition.comment.end.mlw"
             }
           },
-          "name": "comment.block.ocaml",
+          "name": "comment.block.mlw",
           "patterns": [
             {
               "include": "#comments"
@@ -816,11 +619,11 @@
         {
           "begin": "(?=[^\\\\])(\")",
           "end": "\"",
-          "name": "comment.block.string.quoted.double.ocaml",
+          "name": "comment.block.string.quoted.double.mlw",
           "patterns": [
             {
               "match": "\\\\(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\\d\\d|[bnrt'\"\\\\])",
-              "name": "comment.block.string.constant.character.escape.ocaml"
+              "name": "comment.block.string.constant.character.escape.mlw"
             }
           ]
         }
@@ -831,45 +634,45 @@
         {
           "captures": {
             "1": {
-              "name": "meta.empty-typing-pair.ocaml"
+              "name": "meta.empty-typing-pair.mlw"
             },
             "2": {
-              "name": "meta.empty-typing-pair.parens.ocaml"
+              "name": "meta.empty-typing-pair.parens.mlw"
             },
             "3": {
-              "name": "meta.empty-typing-pair.ocaml"
+              "name": "meta.empty-typing-pair.mlw"
             }
           },
           "match": "(?:\\[\\s*(\\])|\\((\\))|\\(\\s*(\\)))",
-          "name": "constant.language.pseudo-variable.ocaml"
+          "name": "constant.language.pseudo-variable.mlw"
         },
         {
           "match": "\\b(true|false)\\b",
-          "name": "constant.language.boolean.ocaml"
+          "name": "constant.language.boolean.mlw"
         },
         {
           "match": "\\b-?[0-9][0-9_]*((\\.([0-9][0-9_]*([eE][+-]??[0-9][0-9_]*)?)?)|([eE][+-]??[0-9][0-9_]*))",
-          "name": "constant.numeric.floating-point.ocaml"
+          "name": "constant.numeric.floating-point.mlw"
         },
         {
           "match": "\\b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))n",
-          "name": "constant.numeric.integer.nativeint.ocaml"
+          "name": "constant.numeric.integer.nativeint.mlw"
         },
         {
           "match": "\\b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))L",
-          "name": "constant.numeric.integer.int64.ocaml"
+          "name": "constant.numeric.integer.int64.mlw"
         },
         {
           "match": "\\b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))l",
-          "name": "constant.numeric.integer.int32.ocaml"
+          "name": "constant.numeric.integer.int32.mlw"
         },
         {
           "match": "\\b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))",
-          "name": "constant.numeric.integer.ocaml"
+          "name": "constant.numeric.integer.mlw"
         },
         {
           "match": "'(.|\\\\(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\\d\\d|[bnrt'\"\\\\]))'",
-          "name": "constant.character.ocaml"
+          "name": "constant.character.mlw"
         }
       ]
     },
@@ -880,7 +683,7 @@
         },
         {
           "match": "\\b[a-zA-Z0-9'_]+\\b",
-          "name": "storage.type.ocaml"
+          "name": "storage.type.mlw"
         }
       ]
     },
@@ -890,16 +693,16 @@
           "begin": "(\\[)(?!\\||<|>)",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.list.begin.ocaml"
+              "name": "punctuation.definition.list.begin.mlw"
             }
           },
           "end": "(?<!\\||>)(])",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.list.end.ocaml"
+              "name": "punctuation.definition.list.end.mlw"
             }
           },
-          "name": "meta.list.ocaml",
+          "name": "meta.list.mlw",
           "patterns": [
             {
               "include": "#lists"
@@ -915,30 +718,30 @@
       "patterns": [
         {
           "match": "\\b_\\b",
-          "name": "constant.language.universal-match.ocaml"
+          "name": "constant.language.universal-match.mlw"
         },
         {
           "match": "\\|(?=\\s*\\S)",
-          "name": "punctuation.separator.match-pattern.ocaml"
+          "name": "punctuation.separator.match-pattern.mlw"
         },
         {
           "begin": "(\\()(?=(?!=.*?->).*?\\|)",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.match-option.ocaml"
+              "name": "punctuation.definition.match-option.mlw"
             }
           },
           "end": "(\\))",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.match-option.ocaml"
+              "name": "punctuation.definition.match-option.mlw"
             }
           },
-          "name": "meta.match-option.ocaml",
+          "name": "meta.match-option.mlw",
           "patterns": [
             {
               "match": "\\|",
-              "name": "punctuation.separator.match-option.ocaml"
+              "name": "punctuation.separator.match-option.mlw"
             },
             {
               "include": "#matchpatterns"
@@ -965,48 +768,48 @@
           "begin": "(val)\\s+([a-z_][a-zA-Z0-9_']*)\\s*(:)",
           "beginCaptures": {
             "1": {
-              "name": "keyword.other.ocaml"
+              "name": "keyword.other.mlw"
             },
             "2": {
-              "name": "entity.name.type.value-signature.ocaml"
+              "name": "entity.name.type.value-signature.mlw"
             },
             "3": {
-              "name": "punctuation.separator.type-constraint.ocaml"
+              "name": "punctuation.separator.type-constraint.mlw"
             }
           },
-          "end": "(?=\\b(type|val|external|class|module|end)\\b)|^\\s*$",
-          "name": "meta.module.signature.val.ocaml",
+          "end": "(?=\\b(type|val|module|end)\\b)|^\\s*$",
+          "name": "meta.module.signature.val.mlw",
           "patterns": [
             {
               "captures": {
                 "1": {
-                  "name": "punctuation.definition.optional-parameter.ocaml"
+                  "name": "punctuation.definition.optional-parameter.mlw"
                 },
                 "2": {
-                  "name": "entity.name.tag.label.optional.ocaml"
+                  "name": "entity.name.tag.label.optional.mlw"
                 },
                 "3": {
-                  "name": "punctuation.separator.optional-parameter.ocaml"
+                  "name": "punctuation.separator.optional-parameter.mlw"
                 }
               },
               "match": "(\\?)([a-z][a-zA-Z0-9_]*)\\s*(:)",
-              "name": "variable.parameter.ameter.optional.ocaml"
+              "name": "variable.parameter.ameter.optional.mlw"
             },
             {
               "begin": "([a-z][a-zA-Z0-9'_]*)\\s*(:)\\s*",
               "beginCaptures": {
                 "1": {
-                  "name": "entity.name.tag.label.ocaml"
+                  "name": "entity.name.tag.label.mlw"
                 },
                 "2": {
-                  "name": "punctuation.separator.label.ocaml"
+                  "name": "punctuation.separator.label.mlw"
                 },
                 "3": {
-                  "name": "storage.type.ocaml"
+                  "name": "storage.type.mlw"
                 }
               },
               "end": "\\s",
-              "name": "variable.parameter.labeled.ocaml",
+              "name": "variable.parameter.labeled.mlw",
               "patterns": [
                 {
                   "include": "#definite_storagetypes"
@@ -1022,48 +825,48 @@
           "begin": "(external)\\s+([a-z_][a-zA-Z0-9_']*)\\s*(:)",
           "beginCaptures": {
             "1": {
-              "name": "keyword.other.ocaml"
+              "name": "keyword.other.mlw"
             },
             "2": {
-              "name": "entity.name.type.external-signature.ocaml"
+              "name": "entity.name.type.external-signature.mlw"
             },
             "3": {
-              "name": "punctuation.separator.type-constraint.ocaml"
+              "name": "punctuation.separator.type-constraint.mlw"
             }
           },
-          "end": "(?=\\b(type|val|external|class|module|let|end)\\b)|^\\s*$",
-          "name": "meta.module.signature.external.ocaml",
+          "end": "(?=\\b(type|val|module|let|end)\\b)|^\\s*$",
+          "name": "meta.module.signature.external.mlw",
           "patterns": [
             {
               "captures": {
                 "1": {
-                  "name": "punctuation.definition.optional-parameter.ocaml"
+                  "name": "punctuation.definition.optional-parameter.mlw"
                 },
                 "2": {
-                  "name": "entity.name.tag.label.optional.ocaml"
+                  "name": "entity.name.tag.label.optional.mlw"
                 },
                 "3": {
-                  "name": "punctuation.separator.optional-parameter.ocaml"
+                  "name": "punctuation.separator.optional-parameter.mlw"
                 }
               },
               "match": "(\\?)([a-z][a-zA-Z0-9_]*)\\s*(:)",
-              "name": "variable.parameter.optional.ocaml"
+              "name": "variable.parameter.optional.mlw"
             },
             {
               "begin": "(~)([a-z][a-zA-Z0-9'_]*)\\s*(:)\\s*",
               "beginCaptures": {
                 "1": {
-                  "name": "punctuation.definition.labeled-parameter.ocaml"
+                  "name": "punctuation.definition.labeled-parameter.mlw"
                 },
                 "2": {
-                  "name": "entity.name.tag.label.ocaml"
+                  "name": "entity.name.tag.label.mlw"
                 },
                 "3": {
-                  "name": "punctuation.separator.label.ocaml"
+                  "name": "punctuation.separator.label.mlw"
                 }
               },
               "end": "\\s",
-              "name": "variable.parameter.labeled.ocaml",
+              "name": "variable.parameter.labeled.mlw",
               "patterns": [
                 {
                   "include": "#variables"
@@ -1085,14 +888,14 @@
         {
           "beginCaptures": {
             "1": {
-              "name": "support.other.module.ocaml"
+              "name": "support.other.module.mlw"
             },
             "2": {
-              "name": "punctuation.separator.module-reference.ocaml"
+              "name": "punctuation.separator.module-reference.mlw"
             }
           },
           "match": "\\b([A-Z][a-zA-Z0-9'_]*)(\\.)",
-          "name": "meta.module-reference.ocaml"
+          "name": "meta.module-reference.mlw"
         }
       ]
     },
@@ -1100,11 +903,11 @@
       "patterns": [
         {
           "match": "\\b(int|char|float|string|list|array|bool|unit|exn|option|int32|int64|nativeint|format4|lazy_t)\\b",
-          "name": "storage.type.ocaml"
+          "name": "storage.type.mlw"
         },
         {
           "match": "#[a-z_][a-zA-Z0-9_]*",
-          "name": "storage.type.variant.polymorphic.ocaml"
+          "name": "storage.type.variant.polymorphic.mlw"
         }
       ]
     },
@@ -1114,28 +917,28 @@
           "begin": "(?=[^\\\\])(\")",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.string.begin.ocaml"
+              "name": "punctuation.definition.string.begin.mlw"
             }
           },
           "end": "(\")",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.string.end.ocaml"
+              "name": "punctuation.definition.string.end.mlw"
             }
           },
-          "name": "string.quoted.double.ocaml",
+          "name": "string.quoted.double.mlw",
           "patterns": [
             {
               "match": "\\\\$[ \\t]*",
-              "name": "punctuation.separator.string.ignore-eol.ocaml"
+              "name": "punctuation.separator.string.ignore-eol.mlw"
             },
             {
               "match": "\\\\(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\\d\\d|[bnrt'\"\\\\])",
-              "name": "constant.character.string.escape.ocaml"
+              "name": "constant.character.string.escape.mlw"
             },
             {
               "match": "\\\\[\\|\\(\\)1-9$^.*+?\\[\\]]",
-              "name": "constant.character.regexp.escape.ocaml"
+              "name": "constant.character.regexp.escape.mlw"
             },
             {
               "match": "\\\\(?!(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\\d\\d|[bnrt'\"\\\\]|[\\|\\(\\)1-9$^.*+?\\[\\]]|$[ \\t]*))(?:.)",
@@ -1149,7 +952,7 @@
       "patterns": [
         {
           "match": "\\|",
-          "name": "punctuation.separator.variant-definition.ocaml"
+          "name": "punctuation.separator.variant-definition.mlw"
         },
         {
           "include": "#comments_inner"
@@ -1157,7 +960,7 @@
         {
           "begin": "\\(",
           "end": "\\)",
-          "name": "meta.paren-group.ocaml",
+          "name": "meta.paren-group.mlw",
           "patterns": [
             {
               "include": "#typedefs"
@@ -1166,53 +969,33 @@
         },
         {
           "match": "\\bof\\b",
-          "name": "keyword.other.ocaml"
+          "name": "keyword.other.mlw"
         },
         {
           "include": "#storagetypes"
         },
         {
           "match": "(?<=\\s|\\()['a-z_][a-zA-Z0-9_]*\\b",
-          "name": "storage.type.ocaml"
+          "name": "storage.type.mlw"
         },
         {
           "captures": {
             "1": {
-              "name": "support.other.module.ocaml"
+              "name": "support.other.module.mlw"
             },
             "2": {
-              "name": "storage.type.module.ocaml"
+              "name": "storage.type.module.mlw"
             }
           },
           "match": "\\b((?:[A-Z][a-zA-Z0-9'_]*)(?:\\.[A-Z][a-zA-Z0-9'_]+)*)(\\.[a-zA-Z0-9'_]+)",
-          "name": "meta.module.type.ocaml"
-        },
-        {
-          "begin": "(\\[(>|<)?)",
-          "beginCaptures": {
-            "1": {
-              "name": "punctuation.definition.polymorphic-variant.ocaml"
-            }
-          },
-          "end": "(\\])",
-          "endCaptures": {
-            "1": {
-              "name": "punctuation.definition.polymorphic-variant.ocaml"
-            }
-          },
-          "name": "meta.polymorphic-variant.definition.ocaml",
-          "patterns": [
-            {
-              "include": "#typedefs"
-            }
-          ]
+          "name": "meta.module.type.mlw"
         },
         {
           "include": "$self"
         },
         {
           "match": "\\|",
-          "name": "punctuation.separator.algebraic-type.ocaml"
+          "name": "punctuation.separator.algebraic-type.mlw"
         }
       ]
     },
@@ -1220,7 +1003,7 @@
       "patterns": [
         {
           "match": "\\(\\)",
-          "name": "variable.parameter.unit.ocaml"
+          "name": "variable.parameter.unit.mlw"
         },
         {
           "include": "#constants"
@@ -1232,17 +1015,17 @@
           "begin": "(~)([a-z][a-zA-Z0-9'_]*)(\\s*:\\s*)?",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.labeled-parameter.ocaml"
+              "name": "punctuation.definition.labeled-parameter.mlw"
             },
             "2": {
-              "name": "entity.name.tag.label.ocaml"
+              "name": "entity.name.tag.label.mlw"
             },
             "3": {
-              "name": "punctuation.separator.label.ocaml"
+              "name": "punctuation.separator.label.mlw"
             }
           },
           "end": "(?=(->|\\s))",
-          "name": "variable.parameter.labeled.ocaml",
+          "name": "variable.parameter.labeled.mlw",
           "patterns": [
             {
               "include": "#variables"
@@ -1252,38 +1035,38 @@
         {
           "captures": {
             "1": {
-              "name": "punctuation.definition.optional-parameter.ocaml"
+              "name": "punctuation.definition.optional-parameter.mlw"
             },
             "2": {
-              "name": "entity.name.tag.label.optional.ocaml"
+              "name": "entity.name.tag.label.optional.mlw"
             }
           },
           "match": "(\\?)([a-z][a-zA-Z0-9_]*)",
-          "name": "variable.parameter.optional.ocaml"
+          "name": "variable.parameter.optional.mlw"
         },
         {
           "begin": "(\\?)(\\()([a-z_][a-zA-Z0-9'_]*)\\s*(=)",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.optional-parameter.ocaml"
+              "name": "punctuation.definition.optional-parameter.mlw"
             },
             "2": {
-              "name": "punctuation.definition.optional-parameter.ocaml"
+              "name": "punctuation.definition.optional-parameter.mlw"
             },
             "3": {
-              "name": "entity.name.tag.label.optional.ocaml"
+              "name": "entity.name.tag.label.optional.mlw"
             },
             "4": {
-              "name": "punctuation.separator.optional-parameter-assignment.ocaml"
+              "name": "punctuation.separator.optional-parameter-assignment.mlw"
             }
           },
           "end": "(\\))",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.optional-parameter.ocaml"
+              "name": "punctuation.definition.optional-parameter.mlw"
             }
           },
-          "name": "variable.parameter.optional.ocaml",
+          "name": "variable.parameter.optional.mlw",
           "patterns": [
             {
               "include": "$self"
@@ -1294,26 +1077,26 @@
           "begin": "(\\()(?=(~[a-z][a-zA-Z0-9_]*:|(\"(\\\\\"|[^\"])*\")|[^\\(\\)~\"])+(?<!:)(:>|:(?![:=])))",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.section.type-constraint.ocaml"
+              "name": "punctuation.section.type-constraint.mlw"
             }
           },
           "end": "(\\))",
           "endCaptures": {
             "1": {
-              "name": "punctuation.section.type-constraint.ocaml"
+              "name": "punctuation.section.type-constraint.mlw"
             }
           },
-          "name": "meta.parameter.type-constrained.ocaml",
+          "name": "meta.parameter.type-constrained.mlw",
           "patterns": [
             {
               "begin": "(?<!:)(:>|:(?![:=]))",
               "beginCaptures": {
                 "1": {
-                  "name": "punctuation.separator.type-constraint.ocaml"
+                  "name": "punctuation.separator.type-constraint.mlw"
                 }
               },
               "end": "(?=\\))",
-              "name": "storage.type.ocaml",
+              "name": "storage.type.mlw",
               "patterns": [
                 {
                   "begin": "\\(",
@@ -1333,7 +1116,7 @@
         {
           "begin": "\\(",
           "end": "\\)",
-          "name": "meta.paren-group.ocaml",
+          "name": "meta.paren-group.mlw",
           "patterns": [
             {
               "include": "#variables"
@@ -1344,16 +1127,16 @@
           "begin": "(\\()",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.tuple.ocaml"
+              "name": "punctuation.definition.tuple.mlw"
             }
           },
           "end": "(\\))",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.tuple.ocaml"
+              "name": "punctuation.definition.tuple.mlw"
             }
           },
-          "name": "variable.parameter.tuple.ocaml",
+          "name": "variable.parameter.tuple.mlw",
           "patterns": [
             {
               "include": "#matchpatterns"
@@ -1363,7 +1146,7 @@
             },
             {
               "match": ",",
-              "name": "punctuation.separator.tuple.ocaml"
+              "name": "punctuation.separator.tuple.mlw"
             }
           ]
         },
@@ -1371,16 +1154,16 @@
           "begin": "(\\{)",
           "beginCaptures": {
             "1": {
-              "name": "punctuation.definition.record.ocaml"
+              "name": "punctuation.definition.record.mlw"
             }
           },
           "end": "(\\})",
           "endCaptures": {
             "1": {
-              "name": "punctuation.definition.record.ocaml"
+              "name": "punctuation.definition.record.mlw"
             }
           },
-          "name": "variable.parameter.record.ocaml",
+          "name": "variable.parameter.record.mlw",
           "patterns": [
             {
               "include": "#moduleref"
@@ -1389,19 +1172,19 @@
               "begin": "\\b([a-z][a-zA-Z0-9'_]*)\\s*(=)",
               "beginCaptures": {
                 "1": {
-                  "name": "entity.name.tag.record.ocaml"
+                  "name": "entity.name.tag.record.mlw"
                 },
                 "2": {
-                  "name": "punctuation.separator.record.field-assignment.ocaml"
+                  "name": "punctuation.separator.record.field-assignment.mlw"
                 }
               },
               "end": "(;)|(?=\\})",
               "endCaptures": {
                 "1": {
-                  "name": "punctuation.separator.record.ocaml"
+                  "name": "punctuation.separator.record.mlw"
                 }
               },
-              "name": "meta.recordfield.match.ocaml",
+              "name": "meta.recordfield.match.mlw",
               "patterns": [
                 {
                   "include": "#matchpatterns"
@@ -1415,7 +1198,7 @@
         },
         {
           "match": "\\b[a-z_][a-zA-Z0-9'_]*",
-          "name": "variable.parameter.ocaml"
+          "name": "variable.parameter.mlw"
         }
       ]
     }
