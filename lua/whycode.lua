@@ -32,8 +32,6 @@ end
 
 function whycode.setup(opts)
 
-  -- if vim.bo.filetype ~= "why3" then return end
-
   opts = opts or {}
   opts.lsp = opts.lsp or {}
   opts.lsp.cmd = opts.lsp.cmd or function() error("erreur cmd lsp") end
