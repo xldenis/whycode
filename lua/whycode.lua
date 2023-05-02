@@ -1,57 +1,22 @@
 local whycode = {}
 
-local function position_lsp_to_api(bufnr, position, offset_encoding)
-  local idx = vim.lsp.util._get_line_byte_from_position(
-    bufnr,
-    { line = position.line, character = position.character },
-    offset_encoding
-  )
-  return { position.line, idx }
-end
-
-local function make_position_params(bufnr, position, offset_encoding)
-  local row, col = unpack(position)
-  row = row - 1
-  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, true)[1]
-  if not line then
-    return { line = 0, character = 0 }
-  end
-
-  col = vim.lsp.util._str_utfindex_enc(line, col, offset_encoding)
-
-  return { line = row, character = col }
-end
-
-local function guess_position(bufnr)
-  local win = vim.api.nvim_get_current_win()
-  if vim.api.nvim_win_get_buf(win) ~= bufnr then
-    error("can't guess position")
-  end
-  return vim.api.nvim_win_get_cursor(win)
-end
-
-local function request_async(client, bufnr, method, params, handler)
+--[[ local function request_async(client, bufnr, method, params, handler)
   local request_success, request_id = client.request(method, params, handler, bufnr)
   if request_success then
     return function()
       client.cancel_request(assert(request_id))
     end
   end
-end
+end ]]
 
 local the_client
 
 local buffers = {}
 
-local config = {
-  show_goals_on = "cursor",
-  goals_debounce = 150,
-}
-
-local progress_ns = vim.api.nvim_create_namespace("whycode")
+local whycode_ns = vim.api.nvim_create_namespace("whycode")
 
 local function create_info_panel(bufnr, ft)
-  ft = ft or "why"
+  ft = ft or "whyinfo"
   local info_bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(info_bufnr, "filetype", ft)
   buffers[bufnr].info_bufnr = info_bufnr
@@ -69,153 +34,109 @@ end
 local function open_info_panel(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win()
+  local info_bufnr = get_info_bufnr(bufnr)
+
   vim.cmd.sbuffer {
-    args = { get_info_bufnr(bufnr) },
+    args = { info_bufnr },
     mods = { keepjumps = true, keepalt = true, vertical = true, split = "belowright"},
   }
+
   vim.cmd.clearjumps()
+
+  -- todo: add more defaults (sidebar.nvim/lua/sidebar-nvim/view.lua)
+  vim.api.nvim_buf_set_option(info_bufnr, "modifiable", false)
+  vim.opt_local.number = false
+  vim.opt_local.relativenumber = false
+
   vim.api.nvim_set_current_win(win)
 end
 
-local function render_goal(i, n, goal)
+local function write_info_panel(bufnr, str)
+    vim.api.nvim_buf_set_option(bufnr, "modifiable", true)
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, str)
+    vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
+end
+
+local function parse_nl(msg)
   local lines = {}
-  lines[#lines+1] = 'Goal ' .. i .. ' / ' .. n
-  for _, hyp in ipairs(goal.hyps) do
-    local line = table.concat(hyp.names, ', ') .. ' : ' .. hyp.ty
-    if hyp.def then
-      line = line .. ' := ' .. hyp.def
+  local hi, lo = 0, 0
+  while true do
+    hi = string.find(msg, "\n", hi+1)
+    if hi == nil then
+      table.insert(lines, string.sub(msg, lo, string.len(msg)-1))
+      break
     end
-    lines[#lines+1] = line
+    table.insert(lines, string.sub(msg, lo, hi-1))
+    lo = hi+1
   end
-  lines[#lines+1] = ''
-  lines[#lines+1] = '========================================'
-  lines[#lines+1] = ''
-  lines[#lines+1] = goal.ty
-  return table.concat(lines, '\n')
+  if lo > 0 then
+    return true, lines
+  else
+    return false, msg
+  end
 end
 
----@param answer GoalAnswer
----@param position MarkPosition Don't use answer.position because buffer content may have changed.
-local function show_goals(answer, position)
-  local bufnr = vim.uri_to_bufnr(answer.textDocument.uri)
-  print("show G " .. vim.inspect(answer.textDocument.uri))
-  local goal_config = answer.goals or {}
-  local goals = goal_config.goals or {}
-  local rendered = {}
-  for i, goal in ipairs(goals) do
-    rendered[#rendered+1] = render_goal(i, #goals, goal)
+--[[ local function red(msg)
+  local t = {}
+  for k, v in pairs(msg) do
+    table.insert(t, k, "\033[1;31m" .. v .. "\033[0m")
   end
+  return t
+end ]]
+
+local icons = { why = "(?)", nok = "(⨯)", ok  = "(✓)", info = "(i)" }
+
+local function render_diagnostics(diagnostics)
   local lines = {}
-  lines[#lines+1] = vim.fn.bufname(bufnr) .. ':' .. position[1] .. ':' .. (position[2] + 1)
-  -- NOTE: each Pp can contain newline, which isn't allowed by nvim_buf_set_lines
-  vim.list_extend(lines, vim.split(table.concat(rendered, '\n\n\n────────────────────────────────────────────────────────────\n'), '\n'))
-  vim.api.nvim_buf_set_lines(get_info_bufnr(bufnr), 0, -1, false, lines)
-end
 
-local function goals_async(bufnr, position)
-  assert(the_client)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  position = position or guess_position(bufnr)
-  local cancel_old = buffers[bufnr].cancel_goals
-  if cancel_old then
-    buffers[bufnr].cancel_goals = nil
-    cancel_old()
+  lines[#lines+1] = ""
+  lines[#lines+1] = " Verification Conditions"
+
+  for _,v in pairs(diagnostics["diagnostics"]) do
+
+    local err, msg = parse_nl(v["message"])
+
+    if err then return msg end
+
+    local start_line = v["range"]["start"]["line"] + 1
+    local start_char = v["range"]["start"]["character"] + 1
+    local end_line = v["range"]["end"]["line"] + 1
+    local end_char = v["range"]["end"]["character"] + 1
+    lines[#lines+1] = ""
+    lines[#lines+1] = string.format(" %s goal: %s", icons.why, msg)
+    lines[#lines+1] = string.format("        [from %d:%d to %d:%s]",
+                                    start_line, start_char, end_line, end_char)
   end
-  local params = {
-    textDocument = vim.lsp.util.make_text_document_params(bufnr),
-    position = make_position_params(bufnr, position, the_client.offset_encoding)
-  }
-  local cancel = request_async(the_client, bufnr, "whycode.show_task", params, function(err, result)
-    --[[ local pres = ":res " .. vim.inspect(result)
-    local perr = ":err " .. vim.inspect(err)
-    local ppos = ":err " .. vim.inspect(position)
-    print(pres .. " ".. perr .. " " .. ppos) ]]
-    buffers[bufnr].cancel_goals = nil
-    if err then return end
-    show_goals(result, position)
-  end)
-  buffers[bufnr].cancel_goals = cancel
+
+  return lines
 end
 
 local function define_handlers()
-
-  vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, config)
+                 -- textDocument/diagnostic ?
+  vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, cconfig)
     -- local uri = result.uri
-    -- check
     -- https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
 
-    print ( vim.inspect(result) )
-    local lines = {}
+    print(vim.inspect(result))
 
-    lines[#lines+1] = "VC"
+    local content = render_diagnostics(result)
 
-    for k,v in pairs(result["diagnostics"]) do
-      local rng_end = v["range"]["end"]["line"] .. ":" .. v["range"]["end"]["character"]
-      local rng_start = v["range"]["start"]["line"] .. ":" .. v["range"]["start"]["character"]
-      local line = "goal : " .. v["message"]
-      lines[#lines+1] = line
-      local rng =  "     [from " .. rng_start .. " to " .. rng_end .. "]"
-      lines[#lines+1] = rng
-    end
+    local bufnr = vim.api.nvim_get_current_buf()
+    local info_bufnr = get_info_bufnr(bufnr)
 
-    -- local str = table.concat(lines, '\n')
-    local str = lines
+    write_info_panel(info_bufnr, content)
 
-    local curr_buf = vim.api.nvim_get_current_buf()
-    local info_bufnr = get_info_bufnr(curr_buf)
-
-    vim.api.nvim_buf_set_lines(info_bufnr, 0, -1, false, str)
-
-    return require("vim.lsp.diagnostic").on_publish_diagnostics(err, result, ctx, config)
+    return require("vim.lsp.diagnostic").on_publish_diagnostics(err, result, ctx, cconfig)
   end
 
 end
 
----@param bufnr? buffer
----@param position? MarkPosition
-local function goals_sync(bufnr, position)
-  print("goals_sync")
-  assert(the_client)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  position = position or guess_position(bufnr)
-  local params = {
-    textDocument = vim.lsp.util.make_text_document_params(bufnr),
-    position = make_position_params(bufnr, position, the_client.offset_encoding)
-  }
-  local request_result, err = the_client.request_sync("whycode.show_task", params, 500, bufnr)
-  if err then
-    vim.notify('goals_sync() failed: ' .. err, vim.log.levels.ERROR)
-    return
-  end
-  assert(request_result)
-  if request_result.err then return end
-  show_goals(request_result.result, position)
-end
+local au = vim.api.nvim_create_augroup("whycode-lsp", { clear = true })
 
----@param bufnr? buffer
-local function get_document(bufnr)
-  assert(the_client)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local params = {
-    textDocument = vim.lsp.util.make_text_document_params(bufnr),
-  }
-  local request_result, err = the_client.request_sync("whycode.show_task", params, 500, bufnr)
-  if err then
-    vim.notify('get_document() failed: ' .. err, vim.log.levels.ERROR)
-    return
-  end
-  assert(request_result)
-  if request_result.err then return end
-  return request_result.result
-end
-
-local ag = vim.api.nvim_create_augroup("whycode-lsp", { clear = true })
-
----@param bufnr buffer
 local function unregister(bufnr)
   assert(buffers[bufnr])
-  vim.api.nvim_buf_clear_namespace(bufnr, progress_ns, 0, -1)
-  vim.api.nvim_clear_autocmds { group = ag, buffer = bufnr }
+  vim.api.nvim_buf_clear_namespace(bufnr, whycode_ns, 0, -1)
+  vim.api.nvim_clear_autocmds { group = au, buffer = bufnr }
   buffers[bufnr].debounce_timer:stop()
   buffers[bufnr].debounce_timer:close()
   if buffers[bufnr].info_bufnr then
@@ -231,22 +152,22 @@ local function register(bufnr)
   open_info_panel(bufnr)
   buffers[bufnr].debounce_timer = assert(vim.loop.new_timer(), "Could not create timer")
   vim.api.nvim_create_autocmd({"BufDelete", "LspDetach"}, {
-    group = ag,
+    group = au,
     buffer = bufnr,
     desc = "Unregister deleted/detached buffer",
     callback = function(ev) unregister(ev.buf) end,
   })
-  goals_async(bufnr)
+  -- goals_async(bufnr)
 end
 
-local function stop()
+function whycode.stop()
   assert(the_client)
   the_client.stop(true)
   the_client = nil
   for bufnr, _ in pairs(buffers) do
     unregister(bufnr)
   end
-  vim.api.nvim_clear_autocmds({ group = ag })
+  vim.api.nvim_clear_autocmds({ group = au })
 end
 
 local function make_on_attach(user_on_attach)
