@@ -50,7 +50,6 @@ local config = {
 
 local progress_ns = vim.api.nvim_create_namespace("whycode")
 
----@param bufnr buffer
 local function create_info_panel(bufnr, ft)
   ft = ft or "why"
   local info_bufnr = vim.api.nvim_create_buf(false, true)
@@ -58,7 +57,6 @@ local function create_info_panel(bufnr, ft)
   buffers[bufnr].info_bufnr = info_bufnr
 end
 
----@param bufnr buffer
 local function get_info_bufnr(bufnr)
   local info_bufnr = buffers[bufnr].info_bufnr
   if info_bufnr and vim.api.nvim_buf_is_valid(info_bufnr) then
@@ -68,7 +66,6 @@ local function get_info_bufnr(bufnr)
   return buffers[bufnr].info_bufnr
 end
 
----@param bufnr? buffer
 local function open_info_panel(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win()
@@ -80,10 +77,6 @@ local function open_info_panel(bufnr)
   vim.api.nvim_set_current_win(win)
 end
 
----@param i integer
----@param n integer
----@param goal Goal
----@return string
 local function render_goal(i, n, goal)
   local lines = {}
   lines[#lines+1] = 'Goal ' .. i .. ' / ' .. n
@@ -144,18 +137,38 @@ local function goals_async(bufnr, position)
   buffers[bufnr].cancel_goals = cancel
 end
 
-vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, config)
+local function define_handlers()
 
-  -- local uri = result.uri
-  -- check
-  -- https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
-  local str = "coucou" -- { vim.inspect(result) }
-  local curr_buf = vim.api.nvim_get_current_buf()
-  local info_bufnr = get_info_bufnr(curr_buf)
+  vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, config)
+    -- local uri = result.uri
+    -- check
+    -- https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
 
-  vim.api.nvim_buf_set_lines(info_bufnr, 0, -1, false, str)
+    print ( vim.inspect(result) )
+    local lines = {}
 
-  return require("vim.lsp.diagnostic").on_publish_diagnostics(err, result, ctx, config)
+    lines[#lines+1] = "VC"
+
+    for k,v in pairs(result["diagnostics"]) do
+      local rng_end = v["range"]["end"]["line"] .. ":" .. v["range"]["end"]["character"]
+      local rng_start = v["range"]["start"]["line"] .. ":" .. v["range"]["start"]["character"]
+      local line = "goal : " .. v["message"]
+      lines[#lines+1] = line
+      local rng =  "     [from " .. rng_start .. " to " .. rng_end .. "]"
+      lines[#lines+1] = rng
+    end
+
+    -- local str = table.concat(lines, '\n')
+    local str = lines
+
+    local curr_buf = vim.api.nvim_get_current_buf()
+    local info_bufnr = get_info_bufnr(curr_buf)
+
+    vim.api.nvim_buf_set_lines(info_bufnr, 0, -1, false, str)
+
+    return require("vim.lsp.diagnostic").on_publish_diagnostics(err, result, ctx, config)
+  end
+
 end
 
 ---@param bufnr? buffer
@@ -245,6 +258,7 @@ local function make_on_attach(user_on_attach)
     end
     if not buffers[bufnr] then
       register(bufnr)
+      define_handlers()
     end
     if user_on_attach then
       user_on_attach(client, bufnr)
@@ -254,32 +268,41 @@ end
 
 function whycode.setup(opts)
 
+  -- if vim.bo.filetype ~= "why3" then return end
+
   opts = opts or {}
-  opts.lsp = opts.lsp or require("lspconfig")
-  opts.lspconfigs = opts.lspconfigs or require("lspconfig.configs")
+  opts.lsp = opts.lsp or {}
+  opts.lsp.cmd = opts.lsp.cmd or function() error("erreur cmd lsp") end
 
-  local user_on_attach = opts.on_attach
-  opts.on_attach = make_on_attach(user_on_attach)
+  local lsp = require("lspconfig")
+  local util = require("lspconfig.util")
+  local configs = require("lspconfig.configs")
 
-  if not opts.lspconfigs["why3"] then
-    opts.lspconfigs["why3"] = {
+  local user_on_attach = opts.lsp.on_attach
+  opts.lsp.on_attach = make_on_attach(user_on_attach)
+
+  if not configs["why3"] then
+    configs["why3"] = {
       default_config = {
         autostart = true,
-        cmd = opts.cmd,
+        cmd = opts.lsp.cmd,
         filetypes = { "why3" },
         root_dir = function(fname)
-          return opts.lsp.util.find_git_ancestor(fname) or vim.loop.os_homedir()
+          return util.find_git_ancestor(fname) or vim.loop.os_homedir()
         end;
         settings = {},
       },
     }
   end
 
-  if not opts.lsp["why3"].document_config.default_config.cmd and not opts.cmd then
+  if not lsp["why3"].document_config.default_config.cmd then
     print("You have not defined a server default cmd for a server that requires it please follow README instructions")
   end
 
-  opts.lsp["why3"].setup({ on_attach = opts.on_attach })
+  lsp["why3"].setup({
+    on_attach = opts.lsp.on_attach,
+    filetypes = { "why3" },
+  })
 
 end
 
