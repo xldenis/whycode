@@ -339,6 +339,10 @@ class why_lsp_server () =
       in
       super#on_req_initialize ~notify_back params
 
+    method! on_req_execute_command ~notify_back:_ ~id:_
+        ~workDoneToken:_ (_name : string) (_args : Yojson.Safe.t list option)
+        : Yojson.Safe.t t = return `Null
+
     method! on_req_code_action ~notify_back:_ ~id:_ c =
       try
         let cont =
