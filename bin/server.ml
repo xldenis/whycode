@@ -339,9 +339,58 @@ class why_lsp_server () =
       in
       super#on_req_initialize ~notify_back params
 
-    method! on_req_execute_command ~notify_back:_ ~id:_
-        ~workDoneToken:_ (_name : string) (_args : Yojson.Safe.t list option)
-        : Yojson.Safe.t t = return `Null
+    method private get_req (req: Yojson.Safe.t list option) =
+      (* let open Lsp.Import in *)
+      begin match req with
+      | Some [
+          `String uri;
+          `Assoc range;
+          (* `Assoc [
+            "start",
+              `Assoc [("line", `Int (sl)); ("character", `Int (sc))];
+            "end",
+              `Assoc [("line", `Int (el)); ("character", `Int (ec))]]; *)
+          `String cmd
+        ] -> 
+          (* let range = Lsp.Import.Json.t_of_yojson range in *)
+          uri, range, cmd
+         (* uri, (sl, sc), (el, ec), cmd *)
+      | _ ->
+          assert false
+          (* failwith "Unknown Request Execute Command BLABLA" *)
+      end
+(*
+  `String (\\"file:///Users/paulpatault/d/git/whycode/count.mlw\\")\\n
+  `Assoc (
+    [(\\"start\\", `Assoc ([(\\"line\\", `Int (8)); (\\"character\\", `Int (14))]));\\n
+     (\\"end\\", `Assoc ([(\\"line\\", `Int (8)); (\\"character\\", `Int (14))]))])
+  \\n`String (\\"Auto_level_0\\"))))
+  *)
+
+          (* let uri, (sl, sc), (el, ec), cmd = self#get_req req in *)
+    method! on_req_execute_command ~(notify_back:Jsonrpc2.notify_back) ~id:_
+        ~workDoneToken:_ (name : string) (req: Yojson.Safe.t list option)
+        : Yojson.Safe.t t =
+
+      let uri, range, cmd = self#get_req req in
+
+      let mk_command uri trans id =
+        Command.create ~title:trans ~command:"whycode.run_transformation"
+          ~arguments:
+            [ DocumentUri.yojson_of_t uri; Range.yojson_of_t id; `String trans ]
+          ()
+      in
+
+      match name with
+      | "whycode.run_transformation" ->
+          begin match cmd with
+          | "Auto_level_0" -> begin
+              let params = assert false in
+              params >>= self#on_run_command ~notify_back
+            end
+          | _ -> failwith "Unhandled transformation"
+          end
+      | _ -> assert false
 
     method! on_req_code_action ~notify_back:_ ~id:_ c =
       try
@@ -516,7 +565,7 @@ class why_lsp_server () =
       let str = Controller.task_body cont (List.hd ids) in
       return (`String str)
 
-    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
+    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name (req:Jsonrpc.Structured.t option)
         : Yojson.Safe.t t =
       let open Lsp.Import in
       let open Lwt.Infix in
