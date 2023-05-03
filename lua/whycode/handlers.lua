@@ -8,13 +8,13 @@ end
 
 function M.define_handlers(verbose)
 
-  vim.lsp.handlers["workspace/executeCommand"] = function(err, result, ctx, cconfig)
+  --[[ vim.lsp.handlers["workspace/executeCommand"] = function(err, result, ctx, cconfig)
     print(
       vim.inspect(err),
       vim.inspect(result),
       vim.inspect(ctx),
       vim.inspect(cconfig))
-  end
+  end ]]
 
 ---@diagnostic disable-next-line: duplicate-set-field
   vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, cconfig)
