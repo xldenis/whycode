@@ -1,0 +1,568 @@
+# TODO:
+# - Add support for contracts
+# - Add support for clone
+# - Add support for refactor grammar so it can be reused for mlcfg
+# - Add support for quantifiers implications, etc...
+
+fileTypes:
+      - mlw
+foldingStartMarker: (\b(module)\s.*?=\s*$|\bbegin|sig|struct|\bwhile\s.*?\bdo\s*$|^let(?:\s+rec)?\s+[a-z_][a-zA-Z0-9_]*\s+(?!=)\S)
+foldingStopMarker: (\bend(\s+in)?[ \t]*(;{1,2}|=)?|\bdone;?|^\s*;;|^\s*in)[ \t]*$
+keyEquivalent: ^~O
+name: WhyML
+patterns:
+      - begin: \b(let|and)\s+(?!\(\*)((rec\s+)([a-z_][a-zA-Z0-9_']*)\b|([a-z_][a-zA-Z0-9_']*|\([^)]+\))(?=\s)((?=\s*=\s*(?=fun(?:ction)\b))|(?!\s*=)))
+        beginCaptures:
+              "1":
+                    name: keyword.other.function-definition.mlw
+              "3":
+                    name: keyword.other.funtion-definition.mlw
+              "4":
+                    name: entity.name.function.mlw
+              "5":
+                    name: entity.name.function.mlw
+        end: (?:(:)\s*([^=]+))?(?:(=)|(=)\s*(?=fun(?:ction)\b))
+        endCaptures:
+              "1":
+                    name: punctuation.separator.function.type-constraint.mlw
+              "2":
+                    name: storage.type.mlw
+              "3":
+                    name: keyword.operator.mlw
+              "4":
+                    name: keyword.operator.mlw
+        name: meta.function.mlw
+        patterns:
+              - include: "#contracts"
+              - include: "#variables"
+      - begin: >
+              (?x)
+                 \b(predicate|function)\s+ 
+                 ([a-z_][a-zA-Z0-9_']*|\([^)]+\)) # function name
+                 (?=\s)
+                 (
+                       (?=\s*=\s*(?=fun(?:ction)\b)) # ??
+                       |(?!\s*=)
+                 )
+
+        beginCaptures:
+              "1":
+                    name: keyword.other.function-definition.mlw
+              "3":
+                    name: keyword.other.funtion-definition.mlw
+              "4":
+                    name: entity.name.function.mlw
+              "5":
+                    name: entity.name.function.mlw
+        end: >
+              (?x)
+              (?:(:)\s*([^=]+))? # return type
+              (?:(=))
+        endCaptures:
+              "1":
+                    name: punctuation.separator.function.type-constraint.mlw
+              "2":
+                    name: storage.type.mlw
+              "3":
+                    name: keyword.operator.mlw
+              "4":
+                    name: keyword.operator.mlw
+        name: meta.function.mlw
+        patterns:
+              - include: "#contracts"
+              - include: "#variables"
+      - begin: (\(|\s)(?=fun\s)
+        beginCaptures:
+              "1":
+                    name: punctuation.definition.function.anonymous.mlw
+        end: (\))
+        endCaptures:
+              "1":
+                    name: punctuation.definition.function.anonymous.mlw
+        name: meta.function.anonymous.mlw
+        patterns:
+              - begin: (?<=(\(|\s))(fun)\s
+                beginCaptures:
+                      "2":
+                            name: keyword.other.function-definition.mlw
+                end: (->)
+                endCaptures:
+                      "1":
+                            name: punctuation.separator.function-definition.mlw
+                name: meta.function.anonymous.definition.mlw
+                patterns:
+                      - include: "#variables"
+              - include: $self
+      - begin: ^\s*(?=type\s)
+        end: \b(?=let|end|val)|^\s*$
+        name: meta.type-definition-group.mlw
+        patterns:
+              - begin: \b(type|and)\s+([^=]*)(=)?
+                beginCaptures:
+                      "1":
+                            name: keyword.other.type-definition.mlw
+                      "2":
+                            name: storage.type.mlw
+                      "3":
+                            name: punctuation.separator.type-definition.mlw
+                end: (?=\b(type|and|let|end|val)\b)|(?=^\s*$)
+                name: meta.type-definition.mlw
+                patterns:
+                      - include: "#typedefs"
+      - begin: >
+            (?x)
+            \b (with|function)
+            (?=(\s*$|.*->))\b
+            | (
+                  (?<!\S)
+                  (\|)
+                  (?=(\w|\s).*->)
+            )
+        beginCaptures:
+              "1":
+                    name: keyword.control.match-definition.mlw
+              "2":
+                    name: keyword.other.function-definition.mlw
+              "3":
+                    name: keyword.control.match-definition.mlw
+        end: (?:(->)|\b(when)\b|\s(?=\|))
+        endCaptures:
+              "1":
+                    name: punctuation.separator.match-definition.mlw
+              "2":
+                    name: keyword.control.match-condition.mlw
+        name: meta.pattern-match.mlw
+        patterns:
+              - include: "#matchpatterns"
+      - begin: (\{)
+        beginCaptures:
+              "1":
+                    name: punctuation.definition.record.mlw
+        end: (\})
+        endCaptures:
+              "1":
+                    name: punctuation.definition.record.mlw
+        name: meta.record.mlw
+        patterns:
+              - match: \bwith\b
+                name: keyword.other.language.mlw
+              - begin: (\bmutable\s+)?\b([a-z_][a-zA-Z0-9_']*)\s*(:)
+                beginCaptures:
+                      "1":
+                            name: keyword.other.storage.modifier.mlw
+                      "2":
+                            name: source.mlw
+                      "3":
+                            name: punctuation.definition.record.mlw
+                end: (;|(?=}))
+                endCaptures:
+                      "1":
+                            name: keyword.operator.mlw
+                name: meta.record.definition.mlw
+                patterns:
+                      - include: "#typedefs"
+              - include: $self
+      - captures:
+              "1":
+                    name: punctuation.separator.method-call.mlw
+        match: (?<=\w|\)|')(#)[a-z_][a-zA-Z0-9'_]*
+        name: meta.method-call.mlw
+      - captures:
+              "1":
+                    name: keyword.other.module-definition.mlw
+              "2":
+                    name: entity.name.type.module.mlw
+              "3":
+                    name: punctuation.separator.module-definition.mlw
+              "4":
+                    name: entity.name.type.module-type.mlw
+        match: ^[
+              \t]*(module)\s+([A-Z_][a-zA-Z0-9'_]*)(?:\s*(:)\s*([A-Z][a-zA-Z0-9'_]*)?)?
+        name: meta.module.mlw
+      - begin: \b(struct)\b
+        beginCaptures:
+              "1":
+                    name: keyword.other.module.structure.mlw
+        end: \b(end)\b
+        endCaptures:
+              "1":
+                    name: keyword.other.module.structure.mlw
+        name: meta.module.structure.mlw
+        patterns:
+              - include: $self
+      - begin: \b(use)\s+([A-Z][a-zA-Z0-9'_]*)(?=(\.[A-Z][a-zA-Z0-9_]*)*) # TODO: Fix this to be lower.lower.Upper
+        beginCaptures:
+              "1":
+                    name: keyword.other.mlw
+              "2":
+                    name: support.other.module.mlw
+        end: (\s|$)
+        name: meta.module.use.mlw
+        patterns:
+              - captures:
+                      "1":
+                            name: punctuation.separator.module-reference.mlw
+                match: (\.)([A-Z][a-zA-Z0-9'_]*)
+                name: support.other.module.mlw
+      - captures:
+              "1":
+                    name: keyword.other.mlw
+              "2":
+                    name: entity.name.type.exception.mlw
+        match: \b(exception)\s+([A-Z][a-zA-Z0-9'_]*)\b
+        name: meta.exception.mlw
+      - begin: (?=(\[<)(?![^\[]+?[^>]]))
+        end: (>])
+        endCaptures:
+              "1":
+                    name: punctuation.definition.camlp4-stream.mlw
+        name: source.camlp4.embedded.mlw
+        patterns:
+              - include: source.camlp4.mlw
+      - include: "#strings"
+      - include: "#constants"
+      - include: "#comments"
+      - include: "#lists"
+      - include: "#arrays"
+      - match: ^[ \t]*#[a-zA-Z]+
+        name: keyword.other.directive.mlw
+      - match: ^[ \t]*#[0-9]*
+        name: keyword.other.directive.line-number.mlw
+      - include: "#storagetypes"
+      - match: \b(mutable|ref)\b
+        name: keyword.other.storage.modifier.mlw
+      - match: "`[A-Za-z][a-zA-Z0-9'_]*\\b"
+        name: entity.name.type.variant.polymorphic.mlw
+      - match: \b[A-Z][a-zA-Z0-9'_]*\b
+        name: entity.name.type.variant.mlw
+      - match: "!=|:=|>|<"
+        name: keyword.operator.symbol.mlw
+      - match: "[*+/-]\\."
+        name: keyword.operator.infix.floating-point.mlw
+      - match: ~-\.
+        name: keyword.operator.prefix.floating-point.mlw
+      - match: "::"
+        name: punctuation.definition.list.constructor.mlw
+      - match: ;;
+        name: punctuation.terminator.expression.mlw
+      - match: ;
+        name: punctuation.separator.mlw
+      - match: ->
+        name: punctuation.separator.function-return.mlw
+      - match: "[=<>@^&+\\-*/$%|][|!$%&*+./:<=>?@^~-]*"
+        name: keyword.operator.infix.mlw
+      - match: \bnot\b|!|[!\?~][!$%&*+./:<=>?@^~-]+
+        name: keyword.operator.prefix.mlw
+      - captures:
+              "1":
+                    name: punctuation.separator.argument-label.mlw
+        match: ~[a-z][a-z0-9'_]*(:)?
+        name: entity.name.tag.label.mlw
+      - begin: \b(begin)\b
+        beginCaptures:
+              "1":
+                    name: keyword.control.begin-end.mlw
+        end: \b(end)\b
+        endCaptures:
+              "1":
+                    name: keyword.control.begin-end.mlw
+        name: meta.begin-end-group.mlw
+        patterns:
+              - include: $self
+      - begin: \b(for)\b
+        beginCaptures:
+              "1":
+                    name: keyword.control.for-loop.mlw
+        end: \b(done)\b
+        endCaptures:
+              "1":
+                    name: keyword.control.for-loop.mlw
+        name: meta.for-loop.mlw
+        patterns:
+              - match: \bdo\b
+                name: keyword.control.loop.mlw
+              - include: $self
+      - begin: \b(while)\b
+        beginCaptures:
+              "1":
+                    name: keyword.control.while-loop.mlw
+        end: \b(done)\b
+        endCaptures:
+              "1":
+                    name: keyword.control.while-loop.mlw
+        name: meta.while-loop.mlw
+        patterns:
+              - match: \bdo\b
+                name: keyword.control.loop.mlw
+              - include: $self
+      - begin: \(
+        end: \)
+        name: meta.paren-group.mlw
+        patterns:
+              - include: $self
+      - match: \b(and|land|lor|lsl|lsr|asr|lnot|lxor|mod|or)\b
+        name: keyword.operator.mlw
+      - match: \b(downto|if|else|match|then|to|when|with|try)\b
+        name: keyword.control.mlw
+      - match: \b(as|assert|exception|in|let|function|predicate|module|mutable|rec|use|clone|sig|struct|type)\b
+        name: keyword.other.mlw
+      - match: (’|‘|“|”)
+        name: invalid.illegal.unrecognized-character.mlw
+repository:
+      arrays:
+            patterns:
+                  - begin: (\[\|)
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.array.begin.mlw
+                    end: (\|])
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.array.end.mlw
+                    name: meta.array.mlw
+                    patterns:
+                          - include: "#arrays"
+                          - include: $self
+      comments:
+            patterns:
+                  - begin: \(\*
+                    beginCaptures:
+                          "0":
+                                name: punctuation.definition.comment.begin.mlw
+                    end: \*\)
+                    endCaptures:
+                          "0":
+                                name: punctuation.definition.comment.end.mlw
+                    name: comment.block.mlw
+                    patterns:
+                          - include: "#comments"
+      comments_inner:
+            patterns:
+                  - include: "#comments"
+                  - begin: (?=[^\\])(")
+                    end: '"'
+                    name: comment.block.string.quoted.double.mlw
+                    patterns:
+                          - match: \\(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\d\d|[bnrt'"\\])
+                            name: comment.block.string.constant.character.escape.mlw
+      constants:
+            patterns:
+                  - captures:
+                          "1":
+                                name: meta.empty-typing-pair.mlw
+                          "2":
+                                name: meta.empty-typing-pair.parens.mlw
+                          "3":
+                                name: meta.empty-typing-pair.mlw
+                    match: (?:\[\s*(\])|\((\))|\(\s*(\)))
+                    name: constant.language.pseudo-variable.mlw
+                  - match: \b(true|false)\b
+                    name: constant.language.boolean.mlw
+                  - match: \b-?[0-9][0-9_]*((\.([0-9][0-9_]*([eE][+-]??[0-9][0-9_]*)?)?)|([eE][+-]??[0-9][0-9_]*))
+                    name: constant.numeric.floating-point.mlw
+                  - match: \b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))n
+                    name: constant.numeric.integer.nativeint.mlw
+                  - match: \b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))L
+                    name: constant.numeric.integer.int64.mlw
+                  - match: \b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))l
+                    name: constant.numeric.integer.int32.mlw
+                  - match: \b(-?((0(x|X)[0-9a-fA-F][0-9a-fA-F_]*)|(0(o|O)[0-7][0-7_]*)|(0(b|B)[01][01_]*)|([0-9][0-9_]*)))
+                    name: constant.numeric.integer.mlw
+                  - match: "'(.|\\\\(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\\d\\d|[bnrt'\"\\\\]))'"
+                    name: constant.character.mlw
+      definite_storagetypes:
+            patterns:
+                  - include: "#storagetypes"
+                  - match: \b[a-zA-Z0-9'_]+\b
+                    name: storage.type.mlw
+      lists:
+            patterns:
+                  - begin: (\[)(?!\||<|>)
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.list.begin.mlw
+                    end: (?<!\||>)(])
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.list.end.mlw
+                    name: meta.list.mlw
+                    patterns:
+                          - include: "#lists"
+                          - include: $self
+      matchpatterns:
+            patterns:
+                  - match: \b_\b
+                    name: constant.language.universal-match.mlw
+                  - match: \|(?=\s*\S)
+                    name: punctuation.separator.match-pattern.mlw
+                  - begin: (\()(?=(?!=.*?->).*?\|)
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.match-option.mlw
+                    end: (\))
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.match-option.mlw
+                    name: meta.match-option.mlw
+                    patterns:
+                          - match: \|
+                            name: punctuation.separator.match-option.mlw
+                          - include: "#matchpatterns"
+                  - include: "#constants"
+                  - include: "#variables"
+                  - include: $self
+      storagetypes:
+            patterns:
+                  - match: \b(int|char|float|string|list|array|bool|unit|exn|option|int32|int64|nativeint|format4|lazy_t)\b
+                    name: storage.type.mlw
+      strings:
+            patterns:
+                  - begin: (?=[^\\])(")
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.string.begin.mlw
+                    end: (")
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.string.end.mlw
+                    name: string.quoted.double.mlw
+                    patterns:
+                          - match: \\$[ \t]*
+                            name: punctuation.separator.string.ignore-eol.mlw
+                          - match: \\(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\d\d|[bnrt'"\\])
+                            name: constant.character.string.escape.mlw
+                          - match: \\[\|\(\)1-9$^.*+?\[\]]
+                            name: constant.character.regexp.escape.mlw
+                          - match:
+                                  \\(?!(x[a-fA-F0-9][a-fA-F0-9]|[0-2]\d\d|[bnrt'"\\]|[\|\(\)1-9$^.*+?\[\]]|$[
+                                  \t]*))(?:.)
+                            name: invalid.illegal.character.string.escape
+      typedefs:
+            patterns:
+                  - match: \|
+                    name: punctuation.separator.variant-definition.mlw
+                  - include: "#comments_inner"
+                  - begin: \(
+                    end: \)
+                    name: meta.paren-group.mlw
+                    patterns:
+                          - include: "#typedefs"
+                  - match: \bof\b
+                    name: keyword.other.mlw
+                  - include: "#storagetypes"
+                  - match: (?<=\s|\()['a-z_][a-zA-Z0-9_]*\b
+                    name: storage.type.mlw
+                  - captures:
+                          "1":
+                                name: support.other.module.mlw
+                          "2":
+                                name: storage.type.module.mlw
+                    match: \b((?:[A-Z][a-zA-Z0-9'_]*)(?:\.[A-Z][a-zA-Z0-9'_]+)*)(\.[a-zA-Z0-9'_]+)
+                    name: meta.module.type.mlw
+                  - include: $self
+                  - match: \|
+                    name: punctuation.separator.algebraic-type.mlw
+      contracts:
+            patterns:
+                  - begin: (ensures|variant|requires)\s*(\{)
+                    end: (\})
+                    name: entity.contract.xxxxx
+                    beginCaptures:
+                          "1":
+                                name: keyword.other.function-definition.mlw
+                          "2":
+                                name: punctuation.definition.contract.mlw
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.contract.mlw
+                    patterns:
+                          - include: $self
+      variables:
+            patterns:
+                  - match: \(\)
+                    name: variable.parameter.unit.mlw
+                  - include: "#constants"
+                  - begin: (~)([a-z][a-zA-Z0-9'_]*)(\s*:\s*)?
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.labeled-parameter.mlw
+                          "2":
+                                name: entity.name.tag.label.mlw
+                          "3":
+                                name: punctuation.separator.label.mlw
+                    end: (?=(->|\s))
+                    name: variable.parameter.labeled.mlw
+                    patterns:
+                          - include: "#variables"
+                  - captures:
+                          "1":
+                                name: punctuation.definition.optional-parameter.mlw
+                          "2":
+                                name: entity.name.tag.label.optional.mlw
+                    match: (\?)([a-z][a-zA-Z0-9_]*)
+                    name: variable.parameter.optional.mlw
+                  - begin: (\?)(\()([a-z_][a-zA-Z0-9'_]*)\s*(=)
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.optional-parameter.mlw
+                          "2":
+                                name: punctuation.definition.optional-parameter.mlw
+                          "3":
+                                name: entity.name.tag.label.optional.mlw
+                          "4":
+                                name: punctuation.separator.optional-parameter-assignment.mlw
+                    end: (\))
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.optional-parameter.mlw
+                    name: variable.parameter.optional.mlw
+                    patterns:
+                          - include: $self
+                  - include: "#comments_inner"
+                  - begin: \(
+                    end: \)
+                    name: meta.paren-group.mlw
+                    patterns:
+                          - include: "#variables"
+                  - begin: (\()
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.tuple.mlw
+                    end: (\))
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.tuple.mlw
+                    name: variable.parameter.tuple.mlw
+                    patterns:
+                          - include: "#matchpatterns"
+                          - include: "#variables"
+                          - match: ","
+                            name: punctuation.separator.tuple.mlw
+                  - begin: (\{)
+                    beginCaptures:
+                          "1":
+                                name: punctuation.definition.record.mlw
+                    end: (\})
+                    endCaptures:
+                          "1":
+                                name: punctuation.definition.record.mlw
+                    name: variable.parameter.record.mlw
+                    patterns:
+                          - begin: \b([a-z][a-zA-Z0-9'_]*)\s*(=)
+                            beginCaptures:
+                                  "1":
+                                        name: entity.name.tag.record.mlw
+                                  "2":
+                                        name: punctuation.separator.record.field-assignment.mlw
+                            end: (;)|(?=\})
+                            endCaptures:
+                                  "1":
+                                        name: punctuation.separator.record.mlw
+                            name: meta.recordfield.match.mlw
+                            patterns:
+                                  - include: "#matchpatterns"
+                  - include: "#storagetypes"
+                  - match: \b[a-z_][a-zA-Z0-9'_]*
+                    name: variable.parameter.mlw
+scopeName: source.mlw
+uuid: d93903e8-7cc6-4ee7-b720-31fee12fe861

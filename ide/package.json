@@ -163,8 +163,8 @@
     ],
     "grammars": [
       {
-        "language": "mlcfg",
-        "scopeName": "source.mlcfg",
+        "language": "why3",
+        "scopeName": "source.mlw",
         "path": "./Why3.tmLanguage.json"
       }
     ]
@@ -179,6 +179,7 @@
     "fix": "prettier --write . && eslint . --ext .ts,.tsx --fix"
   },
   "dependencies": {
+    "generator-code": "^1.7.6",
     "vscode-languageclient": "^8.0.0"
   },
   "devDependencies": {
@@ -188,6 +189,7 @@
     "@typescript-eslint/parser": "^5.55.0",
     "esbuild": "^0.17.11",
     "eslint": "^7.21.0",
+    "js-yaml": "^4.1.0",
     "ovsx": "^0.8.0",
     "prettier": "2.8.4",
     "typescript": "^4.2.2",
