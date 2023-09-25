@@ -71,12 +71,7 @@ let run_strategy_on_goal c id strat ~notification ~finalize =
                 let children = ref (List.length sub_tasks) in
                 List.iter (fun g -> exec_strategy pcsuccess (children :: mem) strat g) sub_tasks
           in
-
-          begin
-            match Session_itp.get_transformation c.controller_session g trname [] with
-            | tid -> callback (TSdone tid)
-            | exception Not_found -> C.schedule_transformation c g trname [] ~callback ~notification
-          end
+          C.schedule_transformation c g trname [] ~callback ~notification
       | Igoto pc -> exec_strategy pc mem strat g
     end
   in
