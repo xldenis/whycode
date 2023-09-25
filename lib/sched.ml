@@ -13,7 +13,7 @@ module Lwt_S : Controller_itp.Scheduler = struct
       let* () = Lwt_unix.sleep 0.0 in
       if f () then promise () else return ()
     in
-    Linol_lwt.spawn (fun () -> promise ())
+    spawn (fun () -> promise ())
 
   (* [insert_timeout_handler ms t f] inserts [f] as a new function to call
          on timeout, with time step of [ms] and first call time as [t] *)

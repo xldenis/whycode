@@ -301,6 +301,8 @@ class why_lsp_server () =
     val mutable env = env'
     val manager = SessionManager.create ()
 
+    method spawn_query_handler f = Linol_lwt.spawn f
+
     (* A set of files for which we have outstanding diagnostics *)
     val mutable outstanding_diag : (string, unit) Hashtbl.t = Hashtbl.create 17
     method! private config_code_action_provider = `CodeActionOptions (CodeActionOptions.create ())
