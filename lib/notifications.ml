@@ -28,6 +28,15 @@ module ResolveSessionRequest = struct
   [@@deriving to_yojson]
 end
 
+module ListTransformationsRequest = struct
+  type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson] } [@@deriving of_yojson]
+
+  (* let yojosn_of_command c = Lsp.Types.Command.yojson_of_t c *)
+
+  (* type response = { transformations: [ `Command of( Lsp.Types.Command.t [@to_yojson yojosn_of_command]) ] list } *)
+  type response = { transformations : (string * string) list } [@@deriving to_yojson]
+end
+
 module StartProofNotification = struct
   type t = { uri : Lsp.Types.DocumentUri.t [@of_yojson uri_of_yojson] } [@@deriving of_yojson]
 

@@ -85,6 +85,12 @@ let strategies (c : controller) : string list =
   let open Wstdlib in
   Hstr.fold (fun s _ acc -> s :: acc) c.controller.controller_strategies []
 
+let transformations (_ : controller) : (string * string) list =
+  let transformation_list =
+    List.map (fun (a, b) -> (a, Format.sprintf "@[%(%)@]" b)) (Server_utils.list_transforms ())
+  in
+  transformation_list
+
 let reload (c : controller) : unit =
   let _ = Controller_itp.reload_files c.controller ~ignore_shapes:true in
   ()

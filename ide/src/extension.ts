@@ -35,6 +35,12 @@ export const resolve = new RequestType<ResolveSessionParams, ResolveSessionRespo
 );
 export const startProof = new RequestType<{ uri: DocumentUri }, boolean | null, unknown>("proof/start");
 
+export const listTransformations = new RequestType<
+  { uri: DocumentUri },
+  { transformations: [string, string][] },
+  unknown
+>("proof/listTransformations");
+
 export const publishTree = new NotificationType<{ uri: DocumentUri; elems: treeElem[] }>("proof/publishTree");
 
 // TODO: This is a bad hack that should be replaced
@@ -143,7 +149,7 @@ function runStartStrategy(uri: string, config: Config) {
         return;
     }
 
-    vscode.commands.executeCommand("whycode.run_transformation", uri, undefined, strat);
+    vscode.commands.executeCommand("whycode.run_transformation", uri, null, strat);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -232,14 +238,34 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
         ],
         [
             "whycode.run_transformation",
-            async (uri: DocumentUri, node: number | Range | undefined, command: string) => {
+            async (uri: DocumentUri | undefined, node: number | Range | undefined | null, command: string | undefined) => {
+                if (uri == undefined) {
+                    uri = vscode.window.activeTextEditor?.document.uri.toString();
+                }
+
+                if (command == undefined) {
+                    let trans = await client.sendRequest(listTransformations, { uri });
+                    let choice = await vscode.window.showQuickPick(
+                        trans.transformations.map((t) => ({ label: t[0], detail: t[1] }))
+                    );
+                    if (choice == undefined) {
+                        return;
+                    }
+
+                    command = choice.label;
+                }
+
+                if (node == undefined) {
+                    node = vscode.window.activeTextEditor?.selection;
+                }
+
                 // console.log(uri, JSON.stringify(node), command);
                 let target;
                 if (typeof node == "number") {
                     target = ["Node", node];
                 } else if (node instanceof Range) {
                     target = ["Range", { start: node.start, end: node.end }];
-                } else {
+                } else if (node == null) {
                     target = null;
                 }
 

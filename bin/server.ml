@@ -512,6 +512,11 @@ class why_lsp_server () =
       let str = Controller.task_body cont (List.hd ids) in
       return (`String str)
 
+    method private on_list_transformation ~notify_back:_ (req : ListTransformationsRequest.t) =
+      let cont = SessionManager.find_controller manager (DocumentUri.to_path req.uri) in
+      let trans = Controller.transformations cont in
+      return (ListTransformationsRequest.response_to_yojson { transformations = trans })
+
     method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
         : Yojson.Safe.t t =
       let open Lsp.Import in
@@ -535,6 +540,10 @@ class why_lsp_server () =
       | "proof/showTask" -> begin
           let params = parse ShowTaskRequest.of_yojson req in
           params >>= self#on_show_task ~notify_back
+        end
+      | "proof/listTransformations" -> begin
+          let params = parse ListTransformationsRequest.of_yojson req in
+          params >>= self#on_list_transformation ~notify_back
         end
       | _ -> failwith "Unhandled custom request"
 

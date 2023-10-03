@@ -7,6 +7,9 @@ type id = int
 val session : controller -> Session_itp.session
 val env : controller -> Env.env
 val strategies : controller -> string list
+
+(* Returns a list of transformation names accompanied by a description of their arguments (I think) *)
+val transformations : controller -> (string * string) list
 val unproved_tasks : controller -> id list
 val all_tasks : controller -> id list
 val reload : controller -> unit

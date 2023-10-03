@@ -30,7 +30,11 @@
       },
       {
         "command": "whycode.replay_session",
-        "title": "Why3 Replay Proof Session"
+        "title": "Why3: Replay Proof Session"
+      },
+      {
+        "command": "whycode.run_transformation",
+        "title": "Why3: Run Transformation"
       },
       {
         "command": "whycode.taskTree.runAuto0",
