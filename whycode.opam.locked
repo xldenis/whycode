@@ -58,7 +58,7 @@ depends: [
   "topkg" {= "1.0.5"}
   "uri" {= "4.2.0"}
   "uutf" {= "1.0.3"}
-  "why3" {= "1.5.1"}
+  "why3" {= "1.6.0"}
   "yojson" {= "2.0.2"}
   "zarith" {= "1.12"}
 ]
@@ -79,7 +79,7 @@ build: [
 pin-depends: [
   ["linol.0.4" "git+https://github.com/c-cube/linol.git"]
   ["linol-lwt.0.4" "git+https://github.com/c-cube/linol.git"]
-  ["why3.1.5.1" "git+https://gitlab.inria.fr/why3/why3.git"]
+  ["why3.1.6.0" "git+https://gitlab.inria.fr/why3/why3.git"]
 ]
 synopsis: "An LSP server for Why3"
 description:
