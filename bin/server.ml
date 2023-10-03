@@ -39,16 +39,16 @@ let located_files cont : Wstdlib.Sstr.t =
   let files = Session_itp.get_files session in
   Hfile.fold
     (fun _ file acc ->
-      List.fold_left
-        (fun acc th ->
-          List.fold_left
-            (fun acc g ->
-              let loc = get_goal_loc (get_task session g) in
-              let f, _, _, _, _ = Loc.get loc in
-              Sstr.add f acc)
-            acc (theory_goals th))
-        (Sstr.add (system_path session file) acc)
-        (file_theories file))
+       List.fold_left
+         (fun acc th ->
+            List.fold_left
+              (fun acc g ->
+                 let loc = get_goal_loc (get_task session g) in
+                 let f, _, _, _, _ = Loc.get loc in
+                 Sstr.add f acc)
+              acc (theory_goals th))
+         (Sstr.add (system_path session file) acc)
+         (file_theories file))
     files set
 
 module SessionManager = struct
@@ -72,9 +72,9 @@ module SessionManager = struct
       let res =
         Hashtbl.fold
           (fun _ cont acc ->
-            if acc <> None then acc
-            else if Wstdlib.Sstr.mem id (located_files cont) then Some cont
-            else None)
+             if acc <> None then acc
+             else if Wstdlib.Sstr.mem id (located_files cont) then Some cont
+             else None)
           m.id_to_controller None
       in
 
@@ -128,7 +128,7 @@ let relativize session_dir f =
 let unproved_leaf_nodes c = Whycode.Controller.unproved_tasks c
 
 let gather_diagnostics_list (c : Whycode.Controller.controller) :
-    (string, Diagnostic.t list) Hashtbl.t =
+  (string, Diagnostic.t list) Hashtbl.t =
   let open Whycode in
   let open Session_itp in
   let session = Controller.session c in
@@ -152,14 +152,14 @@ let gather_diagnostics_list (c : Whycode.Controller.controller) :
 let find_unproved_nodes_at (c : Controller.controller) (rng : Range.t) : Controller.id list =
   List.filter
     (fun id ->
-      let task = Controller.task c id in
-      if not task.proved then
-        let location = task.loc in
-        let _, l1, c1, l2, c2 = Loc.get location in
-        rng.start.line + 1 = l1
-        && rng.end_.line + 1 = l2
-        && c1 <= rng.start.character && rng.end_.character <= c2
-      else false)
+       let task = Controller.task c id in
+       if not task.proved then
+         let location = task.loc in
+         let _, l1, c1, l2, c2 = Loc.get location in
+         rng.start.line + 1 = l1
+         && rng.end_.line + 1 = l2
+         && c1 <= rng.start.character && rng.end_.character <= c2
+       else false)
     (unproved_leaf_nodes c)
 
 (* Publish a batch of diagnostics for a set of files *)
@@ -172,8 +172,8 @@ let send_all_diags (notify_back : Jsonrpc2.notify_back)
   in
   Hashtbl.fold
     (fun file diags lwt ->
-      notify_back#set_uri (DocumentUri.of_path file);
-      Lwt.( <&> ) lwt (notify_back#send_diagnostic diags))
+       notify_back#set_uri (DocumentUri.of_path file);
+       Lwt.( <&> ) lwt (notify_back#send_diagnostic diags))
     diags Lwt.return_unit
 
 let build_tree_notification (cont : Controller.controller) : Jsonrpc.Notification.t list =
@@ -182,19 +182,19 @@ let build_tree_notification (cont : Controller.controller) : Jsonrpc.Notificatio
   let notifs =
     List.map
       (fun (f, elems) ->
-        let notif =
-          PublishTreeNotification.
-            { uri = DocumentUri.of_path (Session_itp.system_path session f); elems }
-        in
-        let params = PublishTreeNotification.to_yojson notif |> Jsonrpc.Structured.t_of_yojson in
-        Jsonrpc.Notification.{ method_ = "proof/publishTree"; params = Some params })
+         let notif =
+           PublishTreeNotification.
+             { uri = DocumentUri.of_path (Session_itp.system_path session f); elems }
+         in
+         let params = PublishTreeNotification.to_yojson notif |> Jsonrpc.Structured.t_of_yojson in
+         Jsonrpc.Notification.{ method_ = "proof/publishTree"; params = Some params })
       trees
   in
 
   notifs
 
 let build_watcher_registration_req ~(patterns : GlobPattern.t list) ~(reg_id : string) :
-    unit Lsp.Server_request.t =
+  unit Lsp.Server_request.t =
   let watchers = List.map (fun p -> FileSystemWatcher.create ~globPattern:p ()) patterns in
   let opts = DidChangeWatchedFilesRegistrationOptions.create ~watchers in
   let opts_json = DidChangeWatchedFilesRegistrationOptions.yojson_of_t opts in
@@ -211,14 +211,14 @@ let register_watchers (notify_back : Jsonrpc2.notify_back) (c : Whycode.Controll
   let files = get_files session in
   Hfile.iter
     (fun _key file ->
-      let path = system_path session file in
-      let pat = RelativePattern.create ~baseUri:(`URI (DocumentUri.of_path path)) ~pattern:"*" in
-      let req = build_watcher_registration_req ~patterns:[ `RelativePattern pat ] ~reg_id:path in
-      let _ =
-        notify_back#send_request req (fun res ->
-            match res with Error e -> log_info notify_back e.message | Ok _ -> return ())
-      in
-      ())
+       let path = system_path session file in
+       let pat = RelativePattern.create ~baseUri:(`URI (DocumentUri.of_path path)) ~pattern:"*" in
+       let req = build_watcher_registration_req ~patterns:[ `RelativePattern pat ] ~reg_id:path in
+       let _ =
+         notify_back#send_request req (fun res ->
+             match res with Error e -> log_info notify_back e.message | Ok _ -> return ())
+       in
+       ())
     files
 
 let update_trees (notify_back : Jsonrpc2.notify_back) (cont : Controller.controller) =
@@ -232,25 +232,25 @@ let errors_to_diagnostics cont (es : exn list) : (string, Diagnostic.t list) Has
   let default = Session_itp.get_dir (Controller.session cont) in
   List.iter
     (fun e ->
-      let file, diag =
-        match e with
-        | Loc.Located (pos, exn) ->
-            let range = loc_to_range pos in
-            let message = Format.asprintf "%a" Exn_printer.exn_printer exn in
-            let file, _, _, _, _ = Loc.get pos in
-            (file, Diagnostic.create ~range ~severity:Error ~source:"Why3" ~message ())
-        | exn ->
-            let range =
-              Range.create
-                ~start:(Position.create ~line:0 ~character:0)
-                ~end_:(Position.create ~line:0 ~character:0)
-            in
-            let message = Format.asprintf "%a" Exn_printer.exn_printer exn in
-            (default, Diagnostic.create ~range ~severity:Error ~source:"Why3" ~message ())
-      in
+       let file, diag =
+         match e with
+         | Loc.Located (pos, exn) ->
+             let range = loc_to_range pos in
+             let message = Format.asprintf "%a" Exn_printer.exn_printer exn in
+             let file, _, _, _, _ = Loc.get pos in
+             (file, Diagnostic.create ~range ~severity:Error ~source:"Why3" ~message ())
+         | exn ->
+             let range =
+               Range.create
+                 ~start:(Position.create ~line:0 ~character:0)
+                 ~end_:(Position.create ~line:0 ~character:0)
+             in
+             let message = Format.asprintf "%a" Exn_printer.exn_printer exn in
+             (default, Diagnostic.create ~range ~severity:Error ~source:"Why3" ~message ())
+       in
 
-      let errors = diag :: (Hashtbl.find_opt diags file |> Option.value ~default:[]) in
-      Hashtbl.replace diags file errors)
+       let errors = diag :: (Hashtbl.find_opt diags file |> Option.value ~default:[]) in
+       Hashtbl.replace diags file errors)
     es;
   diags
 
@@ -261,9 +261,9 @@ let identify_cmd env config strats cmd : command =
     let _ = Trans.lookup_trans env cmd in
     Transform cmd
   with Trans.UnknownTrans _ -> (
-    match Server_utils.return_prover cmd config with
-    | Some _ -> Prover cmd
-    | None -> if List.mem cmd strats then Strategy cmd else raise Not_found)
+      match Server_utils.return_prover cmd config with
+      | Some _ -> Prover cmd
+      | None -> if List.mem cmd strats then Strategy cmd else raise Not_found)
 
 let save_default_config config =
   let open Autodetection in
@@ -272,7 +272,7 @@ let save_default_config config =
   let provers =
     List.map
       (fun (path, name, version) ->
-        { Partial.name; path; version; shortcut = None; manual = false })
+         { Partial.name; path; version; shortcut = None; manual = false })
       provers
   in
   ignore (compute_builtin_prover provers config data);
@@ -339,6 +339,33 @@ class why_lsp_server () =
       in
       super#on_req_initialize ~notify_back params
 
+    method private get_req (req: Yojson.Safe.t list option) =
+      begin match req with
+        | Some [
+            `String uri;
+            `Assoc range;
+            (* `Assoc [
+               "start",
+                `Assoc [("line", `Int (sl)); ("character", `Int (sc))];
+               "end",
+                `Assoc [("line", `Int (el)); ("character", `Int (ec))]]; *)
+            `String cmd
+          ] -> 
+            (* let range = Lsp.Import.Json.t_of_yojson range in *)
+            uri, range, cmd
+        (* uri, (sl, sc), (el, ec), cmd *)
+        | _ ->
+            assert false
+            (* failwith "Unknown Request Execute Command BLABLA" *)
+      end
+(*
+  `String (\\"file:///Users/paulpatault/d/git/whycode/count.mlw\\")\\n
+  `Assoc (
+    [(\\"start\\", `Assoc ([(\\"line\\", `Int (8)); (\\"character\\", `Int (14))]));\\n
+     (\\"end\\", `Assoc ([(\\"line\\", `Int (8)); (\\"character\\", `Int (14))]))])
+  \\n`String (\\"Auto_level_0\\"))))
+  *)
+
     method! on_req_code_action ~notify_back:_ ~id:_ c =
       try
         let cont =
@@ -371,7 +398,7 @@ class why_lsp_server () =
       with Not_found -> return None
 
     method private on_start_proof_req ~notify_back (n : StartProofNotification.t) : Yojson.Safe.t t
-        =
+      =
       let cont, fresh =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
@@ -410,10 +437,10 @@ class why_lsp_server () =
       let* () =
         Lwt_list.iter_p
           (fun id ->
-            match kind with
-            | Strategy _ -> Controller.run_strategy cont n.command id
-            | Transform _ -> Controller.run_transform cont n.command [] id
-            | Prover _ -> failwith "Not yet implemented")
+             match kind with
+             | Strategy _ -> Controller.run_strategy cont n.command id
+             | Transform _ -> Controller.run_transform cont n.command [] id
+             | Prover _ -> failwith "Not yet implemented")
           ids
       in
       let* _ = log_info notify_back "Done!" in
@@ -439,7 +466,7 @@ class why_lsp_server () =
     method private on_did_change_notif ~notify_back (n : DidChangeWatchedFilesParams.t) =
       Lwt_list.iter_p
         (fun (fe : FileEvent.t) ->
-          match fe.type_ with Changed -> self#_on_doc ~notify_back fe.uri | _ -> return ())
+           match fe.type_ with Changed -> self#_on_doc ~notify_back fe.uri | _ -> return ())
         n.changes
 
     method private update_client notify (cont : Controller.controller) =
@@ -512,8 +539,8 @@ class why_lsp_server () =
       let str = Controller.task_body cont (List.hd ids) in
       return (`String str)
 
-    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
-        : Yojson.Safe.t t =
+    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name (req:Jsonrpc.Structured.t option)
+      : Yojson.Safe.t t =
       let open Lsp.Import in
       let open Lwt.Infix in
       let parse f p =
@@ -569,4 +596,64 @@ class why_lsp_server () =
       | Lsp.Client_notification.DidChangeWatchedFiles n -> self#on_did_change_notif ~notify_back n
       | Lsp.Client_notification.UnknownNotification n -> self#on_unknown_notification ~notify_back n
       | _ -> return ()
+
+
+    method! on_req_execute_command ~(notify_back:Jsonrpc2.notify_back) ~id:_
+        ~workDoneToken:_ (name : string) (req: Yojson.Safe.t list option)
+      : Yojson.Safe.t t =
+
+        let open Lsp.Import in
+        let open Lwt.Infix in
+
+        let parse f p =
+          let params = Lsp.Import.Json.read_json_params f p |> Result.join in
+          match params with Error e -> failwith e | Ok p -> return p
+        in
+        match name with
+        | "whycode.run_transformation" ->
+            let params = parse RunTransformationRequest.of_yojson (self#to_structured req) in
+            params >>= self#on_run_command ~notify_back
+        | _ -> assert false
+
+
+  (*
+type t = (* Jsonrpc.Structured.t *)
+    [ `Assoc of (string * Json.t) list
+    | `List of Json.t list
+    ]
+module Json = struct
+  type t =
+    [ `Assoc of (string * t) list
+    | `Bool of bool
+    | `Float of float
+    | `Int of int
+    | `Intlit of string
+    | `List of t list
+    | `Null
+    | `String of string
+    | `Tuple of t list
+    | `Variant of string * t option
+    ]
+*)
+    method private to_structured (req: Yojson.Safe.t list option): Jsonrpc.Structured.t =
+      begin match req with
+      | Some [u;ll;l] ->
+          begin match u,ll,l with
+          | `String uri,
+            `Assoc [
+              "end",   `Assoc ["character", `Int ec; "line", `Int el] ;
+              "start", `Assoc ["character", `Int sc; "line", `Int sl] ;
+                ],
+            `String lvl ->
+          `List [ `Assoc ["command", `String lvl ];
+                  `Assoc ["uri", `String uri];
+                  `Assoc [
+                   "end",   `Assoc ["character", `Int ec; "line", `Int el] ;
+                   "start", `Assoc ["character", `Int sc; "line", `Int sl] ;
+                  ];
+                ]
+          | _ -> assert false
+          end
+      | _ -> assert false
+      end
   end

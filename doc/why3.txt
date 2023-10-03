@@ -1,0 +1,13 @@
+*why3.txt* WhyCode.nvim
+
+Neovim plugin for Why3
+
+Author: Paul PATAULT
+
+==============================================================================
+
+INTRODUCTION                                    *WhyCode.nvim* *why3*
+
+TODO
+
+ vim:tw=78:ts=8:ft=help:norl:

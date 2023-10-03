@@ -1,10 +1,15 @@
 # WhyCode: A VsCode front-end for Why3
 
 This repository contains an experiment in using VsCode as a front-end for the [Why3](http://why3.lri.fr) prover framework, rather than its hand-built GTK frontend.
+It also contains a WIP neovim extension.
 
 # Using the VSCode Extension
 
 - Launch VSCode and run the command `Start Why3`
+
+# Using the Neovim Extension
+
+See [README](./lua/README.md).
 
 # Proving Rust code with Creusot
 

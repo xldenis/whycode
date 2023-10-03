@@ -1,15 +1,14 @@
 use mach.array.Array32
 use int.Int
 use mach.int.Int32
+
 let count (a : array 'a) : int32 =
   requires { false }
-    let ref i  = 0 in
-    while i < a.length do
-        variant { a.length - i }  
-        i <- i + 1
-    done;
-    i
-    
- 
- let x (a : array int) =
-  count a
+  let ref i = 0 in
+  while i < a.length do
+    variant { a.length - i }
+    i <- i + 1
+  done;
+  i
+
+let x (a : array int) = count a
