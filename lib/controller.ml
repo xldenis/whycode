@@ -69,12 +69,24 @@ let pn_from_id c id =
 let session (c : controller) : Session_itp.session = c.controller.controller_session
 let env (c : controller) : Env.env = c.controller.controller_env
 
+let name_for_id c id =
+  match any_from_id c id with
+  | AFile file -> Sysutil.basename (file_path file)
+  | ATh th -> (theory_name th).id_string
+  | ATn tn -> get_transf_name (session c) tn
+  | APn pn -> (get_proof_name (session c) pn).id_string
+  | APa pa -> Pp.string_of Whyconf.print_prover (get_proof_attempt_node (session c) pa).prover
+
+let is_detached c id =
+  let any = any_from_id c id in
+  Session_itp.is_detached (session c) any
+
 let strategies (c : controller) : string list =
   let open Wstdlib in
   Hstr.fold (fun s _ acc -> s :: acc) c.controller.controller_strategies []
 
 let reload (c : controller) : unit =
-  let _ = Controller_itp.reload_files c.controller in
+  let _ = Controller_itp.reload_files c.controller ~ignore_shapes:true in
   ()
 
 let unproved_tasks (c : controller) : id list =
@@ -92,13 +104,17 @@ let unproved_tasks (c : controller) : id list =
         | _ -> acc)
       []
   in
+  x
 
-  let buf = Buffer.create 32 in
-  let fmt = Format.formatter_of_buffer buf in
-  Hint.iter (fun id a -> Format.fprintf fmt "%d %a\n" id fprintf_any a) c.id_to_any;
-  Format.fprintf fmt "elems: %d %d" (List.length x) (Hint.length c.id_to_any);
-  Format.pp_print_flush fmt ();
-  (* raise (Omg (Buffer.contents buf)); *)
+let all_tasks (c : controller) : id list =
+  let open Session_itp in
+  let session = session c in
+
+  let x =
+    Session_itp.fold_all_session session
+      (fun acc any -> match any with Session_itp.APn id -> id_from_any c any :: acc | _ -> acc)
+      []
+  in
   x
 
 let replay (c : controller) : unit Lwt.t =
@@ -152,7 +168,7 @@ let any_to_elem c session any =
     | AFile file -> Sysutil.basename (file_path file)
     | ATh th -> (theory_name th).id_string
     | ATn tn -> get_transf_name session tn
-    | APn _ -> (task c id).expl
+    | APn pn -> get_proof_expl session pn
     | APa pa ->
         let pa = get_proof_attempt_node session pa in
         Pp.string_of Whyconf.print_prover pa.prover

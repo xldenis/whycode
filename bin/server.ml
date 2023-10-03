@@ -2,6 +2,7 @@ open Util
 open Why3
 open Whycode.Notifications
 open Whycode
+module Log = (val Logs.src_log Logs.Src.(create "whycode"))
 
 let warn loc message =
   Lsp.Types.Diagnostic.create () ~range:(loc_to_range loc) ~severity:Warning ~source:"Why3" ~message
@@ -11,7 +12,7 @@ let error loc message =
 
 open Linol_lwt
 
-let log_info n msg = n#send_log_msg ~type_:MessageType.Info msg
+let log_info (n : Jsonrpc2.notify_back) msg = n#send_log_msg ~type_:MessageType.Info msg
 
 let get_goal_loc (task : Task.task) : Loc.position =
   let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
@@ -134,14 +135,17 @@ let gather_diagnostics_list (c : Whycode.Controller.controller) :
   let tbl = Hashtbl.create 17 in
   List.iter
     (fun id ->
-      let task = Controller.task c id in
-      let location = task.loc in
-      let file, _, _, _, _ = Loc.get location in
-      let file = relativize (get_dir session) file in
-      let msg = task.expl in
-      let diag = error location msg in
-      let old = Option.value ~default:[] (Hashtbl.find_opt tbl file) in
-      Hashtbl.replace tbl file (diag :: old))
+      try
+        let task = Controller.task c id in
+        let location = task.loc in
+        let file, _, _, _, _ = Loc.get location in
+        let file = relativize (get_dir session) file in
+        let msg = task.expl in
+        let diag = error location msg in
+        let old = Option.value ~default:[] (Hashtbl.find_opt tbl file) in
+        Hashtbl.replace tbl file (diag :: old)
+      with Not_found ->
+        assert (Controller.is_detached c id)
     (unproved_leaf_nodes c);
   tbl
 
@@ -283,7 +287,6 @@ let save_default_config config =
 class why_lsp_server () =
   let cli_opts = [] in
   let usage_str = "" in
-
   let config', env' = Whyconf.Args.initialize cli_opts (fun _ -> ()) usage_str in
 
   let config' =
@@ -300,7 +303,6 @@ class why_lsp_server () =
     val mutable config = config'
     val mutable env = env'
     val manager = SessionManager.create ()
-
     method spawn_query_handler f = Linol_lwt.spawn f
 
     (* A set of files for which we have outstanding diagnostics *)
@@ -375,15 +377,27 @@ class why_lsp_server () =
         SessionManager.find_or_create_controller manager config env (DocumentUri.to_path n.uri)
       in
       try
+        let* _ =
+          log_info notify_back
+            (Format.sprintf "Starting proof of `%s` found session at `%s`"
+               (DocumentUri.to_path n.uri)
+               (Session_itp.get_dir (Controller.session cont)))
+        in
         Controller.reload cont;
         register_watchers notify_back cont;
         let* _ = self#update_client notify_back cont in
         return (`Bool fresh)
       with Controller_itp.Errors_list es ->
+        let* _ = log_info notify_back "Session had errors" in
         let* _ = self#send_diags notify_back (errors_to_diagnostics cont es) in
         return `Null
 
     method private on_run_command ~notify_back (n : RunTransformationRequest.t) : Yojson.Safe.t t =
+      let* _ =
+        log_info notify_back
+          (Format.asprintf "Running transformation `%s` for  %s" n.command
+             (DocumentUri.to_path n.uri))
+      in
       let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
       let kind = identify_cmd env config (Controller.strategies cont) n.command in
 
@@ -431,8 +445,16 @@ class why_lsp_server () =
 
     method private update_client notify (cont : Controller.controller) =
       let diags = gather_diagnostics_list cont in
+      let unproved = unproved_leaf_nodes cont in
+      let total = Controller.all_tasks cont in
+      let* _ = update_trees notify cont in
+      let* _ =
+        log_info notify
+          (Format.asprintf "There are %d unproved goals of %d total" (List.length unproved)
+             (List.length total))
+      in
       let* _ = self#send_diags notify diags in
-      update_trees notify cont
+      return ()
 
     method private send_diags notify (diags : _ Hashtbl.t) =
       (* Figure out if we had diagnostics for a file which we no longer have any for *)
@@ -455,14 +477,19 @@ class why_lsp_server () =
       return ()
 
     method private on_reset_session ~notify_back (reset : ResetSessionNotification.t) =
+      let* _ = log_info notify_back "Resetting session" in
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
         Controller.reset cont;
+        Controller.save cont;
+        Controller.reload cont;
         let* _ = self#update_client notify_back cont in
         return `Null
-      with Not_found -> return `Null
+      with Not_found -> raise (Failure "Could not find controller?")
+    (* return `Null *)
 
     method private on_reload_session ~notify_back (reset : ReloadSessionNotification.t) =
+      let* _ = log_info notify_back "Reloading session" in
       try
         let cont = SessionManager.find_controller manager (DocumentUri.to_path reset.uri) in
         Controller.reload cont;

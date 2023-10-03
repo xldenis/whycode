@@ -181,7 +181,7 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
                     return;
                 }
                 console.log(uri);
-                client.sendNotification("proof/reload", {
+                client.sendNotification("proof/reloadSession", {
                     uri,
                 });
 
@@ -196,11 +196,11 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
                     return;
                 }
 
-                client.sendNotification("proof/replay", {
+                client.sendNotification("proof/replaySession", {
                     uri: uri,
                 });
 
-                vscode.window.showInformationMessage("Session Reloaded");
+                vscode.window.showInformationMessage("Session Replayed");
             },
         ],
         [
@@ -326,6 +326,10 @@ function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
     context.subscriptions.push(view);
 
     client.onNotification(publishTree, (notif) => {
+        if (notif.elems.length == 0) {
+            return;
+        }
+        
         let tasks = trees.get(notif.uri);
         if (tasks == undefined) {
             tasks = new TaskTree();
