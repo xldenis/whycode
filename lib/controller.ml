@@ -26,11 +26,11 @@ let from_why (controller : Controller_itp.controller) : controller =
   let id_to_any : any Hint.t = Hint.create 17 in
   { controller; pan_to_id; pn_to_id; tn_to_id; th_to_id; file_to_id; next_id = 0; id_to_any }
 
-let id_from_file c file = Hfile.find c.file_to_id (file_id file)
-let id_from_th c th = Ident.Hid.find c.th_to_id (theory_name th)
-let id_from_tn c tn = Htn.find c.tn_to_id tn
-let id_from_pn c pn = Hpn.find c.pn_to_id pn
-let id_from_pan c pan = Hpan.find c.pan_to_id pan
+(* let id_from_file c file = Hfile.find c.file_to_id (file_id file)
+   let id_from_th c th = Ident.Hid.find c.th_to_id (theory_name th)
+   let id_from_tn c tn = Htn.find c.tn_to_id tn
+   let id_from_pn c pn = Hpn.find c.pn_to_id pn
+   let id_from_pan c pan = Hpan.find c.pan_to_id pan *)
 
 let new_id c =
   let n = c.next_id in
@@ -93,29 +93,22 @@ let unproved_tasks (c : controller) : id list =
   let open Session_itp in
   let session = session c in
 
-  let x =
-    Session_itp.fold_all_session session
-      (fun acc any ->
-        match any with
-        | Session_itp.APn id ->
-            if get_transformations session id = [] && not (pn_proved session id) then
-              id_from_any c any :: acc
-            else acc
-        | _ -> acc)
-      []
-  in
-  x
+  Session_itp.fold_all_session session
+    (fun acc any ->
+      match any with
+      | Session_itp.APn id ->
+          if get_transformations session id = [] && not (pn_proved session id) then
+            id_from_any c any :: acc
+          else acc
+      | _ -> acc)
+    []
 
 let all_tasks (c : controller) : id list =
-  let open Session_itp in
   let session = session c in
 
-  let x =
-    Session_itp.fold_all_session session
-      (fun acc any -> match any with Session_itp.APn id -> id_from_any c any :: acc | _ -> acc)
-      []
-  in
-  x
+  Session_itp.fold_all_session session
+    (fun acc any -> match any with Session_itp.APn _ -> id_from_any c any :: acc | _ -> acc)
+    []
 
 let replay (c : controller) : unit Lwt.t =
   let promise, resolver = Lwt.wait () in
@@ -201,7 +194,6 @@ let run_strategy (c : controller) (strat : string) (id : id) : unit Lwt.t =
   promise
 
 let run_transform (c : controller) (trans : string) (args : string list) (id : id) : unit Lwt.t =
-  let open Wstdlib in
   let promise, resolver = Lwt.wait () in
   C.schedule_transformation c.controller (pn_from_id c id) trans args
     ~callback:(fun status ->

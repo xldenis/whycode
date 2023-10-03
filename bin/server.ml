@@ -144,8 +144,7 @@ let gather_diagnostics_list (c : Whycode.Controller.controller) :
         let diag = error location msg in
         let old = Option.value ~default:[] (Hashtbl.find_opt tbl file) in
         Hashtbl.replace tbl file (diag :: old)
-      with Not_found ->
-        assert (Controller.is_detached c id)
+      with Not_found -> assert (Controller.is_detached c id))
     (unproved_leaf_nodes c);
   tbl
 
