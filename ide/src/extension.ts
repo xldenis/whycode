@@ -41,6 +41,33 @@ export const publishTree = new NotificationType<{ uri: DocumentUri; elems: treeE
 let activeTree: string | undefined = undefined;
 const trees: Map<string, TaskTree> = new Map();
 
+let statusBar: vscode.StatusBarItem;
+
+function statusBarOk() {
+    const stats = activeTree != undefined ? trees.get(activeTree)?.getRootStats() : undefined;
+    statusBar.text = `$(check) Whycode (${stats?.proved ?? 0}/${stats?.total ?? 0})`;
+    statusBar.color = "green";
+    statusBar.show();
+}
+
+function statusBarErr() {
+    const stats = activeTree != undefined ? trees.get(activeTree)?.getRootStats() : undefined;
+    statusBar.text = `$(error) Whycode (${stats?.proved ?? 0}/${stats?.total ?? 0})`;
+    statusBar.color = "red";
+    statusBar.show();
+}
+
+function statusBarRunning() {
+    statusBar.text = "$(loading~spin) Whycode";
+    statusBar.color = "";
+    statusBar.show();
+}
+
+function statusBarDefault() {
+    statusBar.text = "Whycode";
+    statusBar.show();
+}
+
 class TaskProvider implements vscode.TextDocumentContentProvider {
   static scheme = "tasks";
 
@@ -205,7 +232,7 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
         ],
         [
             "whycode.run_transformation",
-            (uri: DocumentUri, node: number | Range | undefined, command: string) => {
+            async (uri: DocumentUri, node: number | Range | undefined, command: string) => {
                 // console.log(uri, JSON.stringify(node), command);
                 let target;
                 if (typeof node == "number") {
@@ -216,11 +243,13 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
                     target = null;
                 }
 
-                client.sendRequest("proof/runTransformation", {
+                statusBarRunning();
+                await client.sendRequest("proof/runTransformation", {
                     uri,
                     target,
                     command,
                 });
+                // statusBarDefault();
             },
         ],
         [
@@ -248,6 +277,7 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
 
                 // proofDocs.add(document.uri);
                 let fresh = await client.sendRequest(startProof, { uri: document.uri.toString() });
+
                 if (fresh) {
                     runStartStrategy(document.uri.toString(), config);
                 }
@@ -329,13 +359,14 @@ function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
         if (notif.elems.length == 0) {
             return;
         }
-        
+
         let tasks = trees.get(notif.uri);
         if (tasks == undefined) {
             tasks = new TaskTree();
             trees.set(notif.uri, tasks);
         }
         tasks.fromElems(notif.elems);
+        tasks.isProved() ? statusBarOk() : statusBarErr();
         activeTree = notif.uri;
         treeDataProvider.tree = tasks;
         treeDataProvider.refresh();
@@ -389,6 +420,11 @@ export async function activate(context: ExtensionContext) {
             const disposable = vscode.commands.registerCommand(name, command);
             context.subscriptions.push(disposable);
         });
+
+        // Add a Progress Status Bar item to the bottom of the screen
+        statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        statusBarDefault();
+
         vscode.window.showInformationMessage("Whycode loaded");
     } catch (e) {
         let message: string;

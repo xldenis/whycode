@@ -37,11 +37,30 @@ export class TaskTree {
       });
   }
 
+  isProved(): boolean {
+      return Array.from(this.roots).every((id) => this.data.get(id)?.proved == true);
+  }
+
   getChild(id: Id): TaskNode | undefined {
       return this.data.get(id);
   }
 
-    // getChild(id: Id) :
+  // Return statistics about the roots of the trees
+  getRootStats(): { proved: number; total: number } {
+      let proved = 0;
+      let total = 0;
+
+      this.roots.forEach((id) => {
+          const node = this.data.get(id)!;
+          if (node.proved) {
+              proved += 1;
+          }
+          total += 1;
+      });
+
+      return { proved, total };
+  }
+  // getChild(id: Id) :
 }
 
 export class TaskDataProvider implements vscode.TreeDataProvider<TaskNode> {
