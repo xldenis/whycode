@@ -253,11 +253,12 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
                     }
 
                     command = choice.label;
+
+                    if (node == undefined) {
+                        node = vscode.window.activeTextEditor?.selection;
+                    }
                 }
 
-                if (node == undefined) {
-                    node = vscode.window.activeTextEditor?.selection;
-                }
 
                 // console.log(uri, JSON.stringify(node), command);
                 let target;
@@ -265,7 +266,7 @@ function buildCommands(config: Config): [string, (...args: any[]) => any][] {
                     target = ["Node", node];
                 } else if (node instanceof Range) {
                     target = ["Range", { start: node.start, end: node.end }];
-                } else if (node == null) {
+                } else {
                     target = null;
                 }
 
@@ -379,6 +380,7 @@ function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
     const view: vscode.TreeView<TaskNode> = vscode.window.createTreeView("taskTree", {
         treeDataProvider,
     });
+    
     context.subscriptions.push(view);
 
     client.onNotification(publishTree, (notif) => {

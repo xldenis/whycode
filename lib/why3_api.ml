@@ -10,9 +10,9 @@ let string_of_task (task : Task.task) tables =
   let module P =
     (val Pretty.create
            ~print_ext_any:(fun id -> id)
-           ~do_forget_all:false ~shorten_axioms:true pr apr pr pr)
+           ~do_forget_all:false ~shorten_axioms:true ~show_uses_clones_metas:false pr apr pr pr)
   in
-  Pp.string_of P.print_task task
+  Pp.string_of P.print_sequent task
 
 let call_one_prover (c : Controller_itp.controller) (p, timelimit, memlimit, steplimit) ~callback
     ~notification g =
