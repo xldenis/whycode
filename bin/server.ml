@@ -94,15 +94,40 @@ module SessionManager = struct
       let session = Hashtbl.find m.path_to_id id in
       Hashtbl.find m.id_to_controller session
     with Not_found ->
-      let cont, dir, _ = Controller.from_file config env ~mkdir:false id in
+      let res =
+        Hashtbl.fold
+          (fun _ cont acc ->
+            if acc <> None then acc
+            else if Wstdlib.Sstr.mem id (located_files cont) then Some cont
+            else None)
+          m.id_to_controller None
+      in
+      let cont, dir, fresh =
+        match res with
+        (* Otherwie try to load a session *)
+        | None -> Controller.from_file config env ~mkdir:true id
+        | Some cont -> (cont, Session_itp.get_dir (Controller.session cont), false)
+      in
 
       Hashtbl.replace m.path_to_id id dir;
-      Hashtbl.replace m.id_to_controller dir cont;
       cont
 
   let find_controller (m : manager) id : controller =
-    let session = Hashtbl.find m.path_to_id id in
-    Hashtbl.find m.id_to_controller session
+    try
+      let session = Hashtbl.find m.path_to_id id in
+      Hashtbl.find m.id_to_controller session
+    with Not_found ->
+      let (Some cont) =
+        Hashtbl.fold
+          (fun _ cont acc ->
+            if acc <> None then acc
+            else if Wstdlib.Sstr.mem id (located_files cont) then Some cont
+            else None)
+          m.id_to_controller None
+      in
+      let dir = Session_itp.get_dir (Controller.session cont) in
+      Hashtbl.replace m.path_to_id id dir;
+      cont
 
   let close_file (m : manager) (path : string) : bool =
     if Hashtbl.mem m.path_to_id path then begin
@@ -394,7 +419,7 @@ class why_lsp_server () =
     method private on_run_command ~notify_back (n : RunTransformationRequest.t) : Yojson.Safe.t t =
       let* _ =
         log_info notify_back
-          (Format.asprintf "Running transformation `%s` for  %s" n.command
+          (Format.asprintf "Running transformation `%s` for '%s'" n.command
              (DocumentUri.to_path n.uri))
       in
       let cont = SessionManager.find_controller manager (DocumentUri.to_path n.uri) in
@@ -424,8 +449,9 @@ class why_lsp_server () =
 
     method private on_did_save_notif ~notify_back (n : DidSaveTextDocumentParams.t) =
       try
-        let cont =
-          SessionManager.find_controller manager (DocumentUri.to_path n.textDocument.uri)
+        let cont, _ =
+          SessionManager.find_or_create_controller manager config env
+            (DocumentUri.to_path n.textDocument.uri)
         in
         try
           let* _ = log_info notify_back "Saving session" in
