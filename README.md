@@ -16,5 +16,5 @@ This repository contains an experiment in using VsCode as a front-end for the [W
 
 - I can't see the task tree!
   - Unfortunately that is not yet supproted
-- Something is seems like a bug!
+- Something seems like a bug!
   - It probably is, so don't hesitate to [open an issue](https://github.com/xldenis/whycode).
