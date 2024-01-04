@@ -117,7 +117,8 @@ module SessionManager = struct
       let session = Hashtbl.find m.path_to_id id in
       Hashtbl.find m.id_to_controller session
     with Not_found ->
-      let (Some cont) =
+      Log.info (fun k -> k "Could not load controller");
+      let cont =
         Hashtbl.fold
           (fun _ cont acc ->
             if acc <> None then acc
@@ -125,6 +126,7 @@ module SessionManager = struct
             else None)
           m.id_to_controller None
       in
+      let cont = match cont with | Some c -> c | None -> raise Not_found in
       let dir = Session_itp.get_dir (Controller.session cont) in
       Hashtbl.replace m.path_to_id id dir;
       cont
@@ -543,7 +545,7 @@ class why_lsp_server () =
       let trans = Controller.transformations cont in
       return (ListTransformationsRequest.response_to_yojson { transformations = trans })
 
-    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~id:_ name req
+    method private on_unknown_request ~(notify_back : Jsonrpc2.notify_back) ~server_request:_ ~id:_ name req
         : Yojson.Safe.t t =
       let open Lsp.Import in
       let open Lwt.Infix in
@@ -591,13 +593,6 @@ class why_lsp_server () =
         end
       | _ -> return ()
 
-    method! on_request_unhandled (type r) ~(notify_back : Jsonrpc2.notify_back)
-        ~(id : Linol.Server.Req_id.t) (req : r Lsp.Client_request.t) : r t =
-      match req with
-      | Lsp.Client_request.UnknownRequest r ->
-          self#on_unknown_request ~notify_back ~id r.meth r.params
-      | _ -> assert false
-
     method! on_notification_unhandled ~notify_back notif =
       match notif with
       | Lsp.Client_notification.DidSaveTextDocument n -> self#on_did_save_notif ~notify_back n
@@ -605,3 +600,60 @@ class why_lsp_server () =
       | Lsp.Client_notification.UnknownNotification n -> self#on_unknown_notification ~notify_back n
       | _ -> return ()
   end
+
+
+let reporter ppf =
+  let report (type a b) src level ~over (k : unit -> b) (msgf : (a, b) Logs.msgf) : b =
+    let k _ = over (); k () in
+    let with_stamp h tags k ppf  (fmt : _ format4 ) : a =
+
+      Format.kfprintf k ppf (" @[" ^^ fmt ^^ "@]@.")
+    in
+    msgf @@ fun ?header ?tags (fmt : _ format4) -> with_stamp header tags k ppf fmt
+  in
+  { Logs.report = report }
+
+let lwt_reporter server =
+  let report (type a b) src level ~over (k : unit -> b) (msgf : (a, b) Logs.msgf) : b =
+    let report k (fmt : string) : b   =
+      let notif =
+      (* Report levels properly*)
+        let params = LogMessageParams.create ~type_:MessageType.Info  ~message:fmt in
+        (Lsp.Server_notification.LogMessage params)
+      in
+      let write () =
+       Linol_lwt.Jsonrpc2.send_server_notification server notif
+      in
+      let unblock () = over (); Lwt.return_unit in
+      Lwt.finalize write unblock |> Lwt.ignore_result; k ()
+    in
+    let out k (fmt : (a, Format.formatter, unit, b) format4) : a =
+      Format.kasprintf (report k) fmt
+    in
+     msgf @@ fun ?header ?tags (fmt : _ format4) -> out k fmt
+
+
+  in
+  { Logs.report = report }
+
+(* let lwt_reporter server =
+  let report src level ~over k msgf  =
+
+    let lwt_report (msg : string) =
+    let notif =
+          let params = LogMessageParams.create ~type_:MessageType.Info  ~message:"Hello from Logs" in
+          (Lsp.Server_notification.LogMessage params)
+        in
+        let write () = match level with
+        | _ -> Linol_lwt.Jsonrpc2.send_server_notification server notif
+        in
+        let unblock () = over (); Lwt.return_unit in
+        Lwt.finalize write unblock |> Lwt.ignore_result; k ()
+      in
+    let report (fmt : _ format6) =
+        Format.ksprintf lwt_report fmt
+
+      in
+    msgf @@ (fun ?header ?tags (fmt : _ format6 )  -> report fmt )
+  in
+  { Logs.report = report } *)
