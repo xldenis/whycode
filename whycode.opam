@@ -14,13 +14,15 @@ depends: [
   "ocaml" { >= "4.14" }
   "dune" {>= "3.0"}
   "odoc" {with-doc}
-  "why3"
+  "why3" {= "git-6736"}
   "lsp" { >= "1.11.0" }
-  "logs"
+  "logs" { = "0.7.0"}
   "linol"
   "linol-lwt"
   "uri"
   "bheap"
+  "camlzip"
+  "ocamlgraph"
   "ppx_deriving_yojson"
   "ocamlgraph"
 ]
@@ -38,3 +40,8 @@ build: [
     "@doc" {with-doc}
   ]
 ]
+pin-depends: [
+  [ "why3.git-6736" "git+https://gitlab.inria.fr/why3/why3.git#67362b1" ]
+  [ "why3-ide.git-6736" "git+https://gitlab.inria.fr/why3/why3.git#67362b1" ]
+]
+

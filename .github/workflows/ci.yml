@@ -6,18 +6,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.FETCH_DEPTH }}
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3.6.0
+        uses: actions/setup-node@v4
       - run: npm ci
         working-directory: ide
   server:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.FETCH_DEPTH }}
       - name: Use OCaml
@@ -27,5 +27,5 @@ jobs:
         env:
           OPAMLOCKED: locked
         uses: ocaml/setup-ocaml@v2
-      - run: opam install . --deps-only --locked
+      - run: opam install . --deps-only
       - run: opam exec -- dune build

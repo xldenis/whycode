@@ -1,6 +1,6 @@
 let run () =
   let s = new Server.why_lsp_server () in
-  let server = Linol_lwt.Jsonrpc2.create_stdio s in
+  let server = Linol_lwt.Jsonrpc2.create_stdio s ~env:() in
   Logs.set_reporter (Server.lwt_reporter server);
   Logs.set_level (Some Logs.Info);
   let task : unit Lwt.t = Linol_lwt.Jsonrpc2.run server in

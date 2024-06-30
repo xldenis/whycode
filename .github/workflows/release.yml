@@ -16,7 +16,7 @@ jobs:
     outputs:
       should_run: ${{ steps.should_run.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: print latest_commit
         run: echo ${{ github.sha }}
       - id: should_run
@@ -35,10 +35,10 @@ jobs:
           - os: ubuntu-latest
             code-target: no-server
 
-          - os: macos-latest
+          - os: macos-14
             code-target: darwin-arm64
 
-          - os: macos-latest
+          - os: macos-12
             code-target: darwin-x64
 
     name: dist (${{ matrix.code-target }})
@@ -52,12 +52,12 @@ jobs:
             echo "version=0.2" >> $GITHUB_ENV
           fi
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.FETCH_DEPTH }}
 
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
 
@@ -66,12 +66,10 @@ jobs:
           ocaml-compiler: 4.14.0
           dune-cache: true
           cache-prefix: v1-${{ matrix.os }}
-        env:
-          OPAMLOCKED: locked
         uses: ocaml/setup-ocaml@v2
 
       - run: |
-          opam install . --deps-only --locked
+          opam install . --deps-only
           opam pin add why3 https://gitlab.inria.fr/why3/why3.git#50731afc8d34d5773ba719bcdf436a685eea5fd1
 
       - run: LINKING_MODE=static opam exec -- dune build --profile=release
@@ -125,12 +123,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Nodejs
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.FETCH_DEPTH }}
 
