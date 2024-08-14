@@ -23,7 +23,7 @@ function M.register(bufnr)
   M.buffers[bufnr] = {}
   view.create_info_panel(bufnr)
   view.open_info_panel(bufnr)
-  M.buffers[bufnr].debounce_timer = assert(vim.loop.new_timer(), "Could not create timer")
+  M.buffers[bufnr].debounce_timer = assert(vim.uv.new_timer(), "Could not create timer")
   vim.api.nvim_create_autocmd({"BufDelete", "LspDetach"}, {
     group = M.au,
     buffer = bufnr,

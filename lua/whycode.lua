@@ -13,7 +13,7 @@ function whycode.stop()
   vim.api.nvim_clear_autocmds({ group = buf.au })
 end
 
-local function make_on_attach(user_on_attach)
+local function make_on_attach(user_on_attach, verb)
   return function(client, bufnr)
     if not the_client then
       the_client = client
@@ -22,7 +22,7 @@ local function make_on_attach(user_on_attach)
     end
     if not buf.buffers[bufnr] then
       buf.register(bufnr)
-      require("whycode.handlers").define_handlers()
+      require("whycode.handlers").define_handlers(verb)
     end
     if user_on_attach then
       user_on_attach(client, bufnr)
@@ -35,13 +35,15 @@ function whycode.setup(opts)
   opts = opts or {}
   opts.lsp = opts.lsp or {}
   opts.lsp.cmd = opts.lsp.cmd or function() error("erreur cmd lsp") end
+  opts.lsp.verbose = opts.lsp.verbose or false
+  opts.lsp.capabilities = opts.lsp.capabilities or {}
 
   local lsp = require("lspconfig")
   local util = require("lspconfig.util")
   local configs = require("lspconfig.configs")
 
   local user_on_attach = opts.lsp.on_attach
-  opts.lsp.on_attach = make_on_attach(user_on_attach)
+  opts.lsp.on_attach = make_on_attach(user_on_attach, opts.lsp.verbose)
 
   if not configs["why3"] then
     configs["why3"] = {
@@ -50,7 +52,7 @@ function whycode.setup(opts)
         cmd = opts.lsp.cmd,
         filetypes = { "why3" },
         root_dir = function(fname)
-          return util.find_git_ancestor(fname) or vim.loop.os_homedir()
+          return util.find_git_ancestor(fname)
         end;
         settings = {},
       },
@@ -64,7 +66,11 @@ function whycode.setup(opts)
   lsp["why3"].setup({
     on_attach = opts.lsp.on_attach,
     filetypes = { "why3" },
+    capabilities = opts.lsp.capabilities,
   })
+
+  require("whycode.hi").init_highlights()
+  require("whycode.hi").run_autocommands()
 
 end
 

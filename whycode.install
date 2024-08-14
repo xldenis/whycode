@@ -1,0 +1,12 @@
+lib: [
+  "_build/install/default/lib/whycode/META"
+  "_build/install/default/lib/whycode/dune-package"
+  "_build/install/default/lib/whycode/opam"
+]
+bin: [
+  "_build/install/default/bin/whycode"
+]
+doc: [
+  "_build/install/default/doc/whycode/LICENSE"
+  "_build/install/default/doc/whycode/README.md"
+]

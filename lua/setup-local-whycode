@@ -1,0 +1,11 @@
+#!/bin/bash
+
+DIST="$HOME/.local/share/nvim/lazy/whycode"
+SRC="$DEV/whycode"
+
+rm -rf $DIST
+mkdir $DIST
+
+ln -s $SRC/lua      $DIST
+ln -s $SRC/ftdetect $DIST
+ln -s $SRC/syntax   $DIST

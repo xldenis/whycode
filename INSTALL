@@ -1,0 +1,5 @@
+opam switch create . ocaml.4.14.0
+eval $(opam env)
+opam pin add why3 https://gitlab.inria.fr/why3/why3.git
+opam pin add linol https://github.com/c-cube/linol.git
+opam pin add linol-lwt https://github.com/c-cube/linol.git
