@@ -41,7 +41,7 @@ build: [
   ]
 ]
 pin-depends: [
-  [ "why3.git-6736" "git+https://gitlab.inria.fr/why3/why3.git#67362b1" ]
-  [ "why3-ide.git-6736" "git+https://gitlab.inria.fr/why3/why3.git#67362b1" ]
+  [ "why3.git-6736" "git+https://gitlab.inria.fr/why3/why3.git#2e496ee04" ]
+  [ "why3-ide.git-6736" "git+https://gitlab.inria.fr/why3/why3.git#2e496ee04" ]
 ]
 
