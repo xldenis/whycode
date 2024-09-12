@@ -138,17 +138,17 @@ jobs:
           name: darwin-arm64
           path: dist
 
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: darwin-x64
           path: dist
 
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: no-server
           path: dist
 
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: linux-x64
           path: dist
