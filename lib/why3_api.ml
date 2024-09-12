@@ -85,3 +85,8 @@ let add_file_to_session cont file =
     let _ = Session_itp.find_file_from_path cont.controller_session fn in
     ()
   with Not_found -> if Sys.file_exists file then Controller_itp.add_file cont file
+
+let get_goal_loc (task : Task.task) : Loc.position option =
+  let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
+  match location with Some _ -> location | None -> (Task.task_goal task).pr_name.id_loc
+    
