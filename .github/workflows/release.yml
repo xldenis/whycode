@@ -66,7 +66,8 @@ jobs:
           ocaml-compiler: 4.14.0
           dune-cache: true
           cache-prefix: v1-${{ matrix.os }}
-        uses: ocaml/setup-ocaml@v2
+          allow-prerelease-opam: true
+        uses: ocaml/setup-ocaml@v3
 
       - run: |
           opam install . --deps-only
