@@ -113,7 +113,7 @@ jobs:
         working-directory: ide
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.code-target }}
           path: ./dist
@@ -132,7 +132,7 @@ jobs:
         with:
           fetch-depth: ${{ env.FETCH_DEPTH }}
 
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: darwin-arm64
           path: dist
