@@ -20,13 +20,28 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.FETCH_DEPTH }}
-      - name: Use OCaml
+      - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 4.14.0
-          dune-cache: true
-          allow-prerelease-opam: true
         env:
           OPAMLOCKED: locked
-        uses: ocaml/setup-ocaml@v3
+      - name: OCaml cache
+        id: ocaml-cache
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-ocaml
+          dune-cache: true
+        with:
+          path: _opam
+          key: ${{ runner.os }}-${{ env.cache-name }}-ocaml5.2-${{ hashFiles('**/*.opam') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.cache-name }}-ocaml5.2
       - run: opam install . --deps-only
       - run: opam exec -- dune build
+      # Cleanup _opam before updating cache
+      - if: ${{ steps.cache-ocaml.outputs.cache-hit != 'true' }}
+        name: Cleanup _opam before updating cache
+        continue-on-error: true
+        run: |
+          opam clean
+          ls
