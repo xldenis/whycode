@@ -153,9 +153,9 @@
     },
     "languages": [
       {
-        "id": "mlcfg",
+        "id": "coma",
         "extensions": [
-          ".mlcfg"
+          ".coma"
         ]
       },
       {

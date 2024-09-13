@@ -2,6 +2,7 @@ open Util
 open Why3
 open Whycode.Notifications
 open Whycode
+open Why3_api
 module Log = (val Logs.src_log Logs.Src.(create "whycode"))
 
 let warn loc message =
@@ -13,14 +14,6 @@ let error loc message =
 open Linol_lwt
 
 let log_info (n : Jsonrpc2.notify_back) msg = n#send_log_msg ~type_:MessageType.Info msg
-
-let get_goal_loc (task : Task.task) : Loc.position =
-  let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
-  let location =
-    match location with Some l -> l | None -> Option.get (Task.task_goal task).pr_name.id_loc
-  in
-
-  location
 
 (*
   Get a set of files referred to in a session.
@@ -43,9 +36,11 @@ let located_files cont : Wstdlib.Sstr.t =
         (fun acc th ->
           List.fold_left
             (fun acc g ->
-              let loc = get_goal_loc (get_task session g) in
-              let f, _, _, _, _ = Loc.get loc in
-              Sstr.add f acc)
+              match get_goal_loc (get_task session g) with
+              | Some loc ->
+                  let f, _, _, _, _ = Loc.get loc in
+                  Sstr.add f acc
+              | None -> acc)
             acc (theory_goals th))
         (Sstr.add (system_path session file) acc)
         (file_theories file))

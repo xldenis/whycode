@@ -18,6 +18,7 @@ let client: LanguageClient;
 const languages = [
     { scheme: "file", language: "rust" },
     { scheme: "file", language: "mlcfg" },
+    { scheme: "file", language: "coma" },
     { scheme: "file", language: "why3" },
 ];
 

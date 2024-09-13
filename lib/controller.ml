@@ -130,21 +130,13 @@ let save (c : controller) : unit = Session_itp.save_session (session c)
 let reset (c : controller) =
   C.reset_proofs c.controller ~notification:(fun _ -> ()) ~removed:(fun _ -> ()) None
 
-let get_goal_loc (task : Task.task) : Loc.position =
-  let location = try (Task.task_goal_fmla task).t_loc with Task.GoalNotFound -> None in
-  let location =
-    match location with Some l -> l | None -> Option.get (Task.task_goal task).pr_name.id_loc
-  in
-
-  location
-
 type task = { expl : string; loc : Loc.position; proved : bool }
 
 let task c (id : id) =
   let session = session c in
   let id = pn_from_id c id in
   let task = get_task session id in
-  let location = get_goal_loc task in
+  let location = Option.value (get_goal_loc task) ~default:Loc.dummy_position in
   let msg = get_proof_expl session id in
   let msg = if msg = "" then (get_proof_name session id).id_string else msg in
   let proved = Session_itp.pn_proved c.controller.controller_session id in
@@ -247,7 +239,7 @@ let from_file ~mkdir config env (id : string) : controller * string * bool =
   Server_utils.load_strategies cont;
   (* HACK: add mlcfg *)
   let why_file =
-    if Filename.check_suffix id "rs" then Filename.chop_suffix id "rs" ^ "mlcfg" else id
+    if Filename.check_suffix id "rs" then Filename.chop_suffix id "rs" ^ "coma" else id
   in
   add_file_to_session cont why_file;
   let cont = from_why cont in
