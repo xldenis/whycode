@@ -432,6 +432,23 @@ function setupTaskTree(context: ExtensionContext, client: LanguageClient) {
     context.subscriptions.push(disposable);
 }
 
+function creusotRegisterTaskProvider() {
+    vscode.tasks.registerTaskProvider('creusot', {
+        provideTasks: () => {
+            const creusotTask = new vscode.Task(
+                { type: 'creusot' },
+                vscode.workspace.workspaceFolders[0],
+                'Compile to Why3 (cargo creusot)',
+                'creusot',
+                new vscode.ShellExecution('cargo creusot'));
+            return [creusotTask];
+        },
+        resolveTask(task) {
+            return task;
+        }
+    });
+}
+
 export async function activate(context: ExtensionContext) {
     try {
         const config = new Config(context);
@@ -449,6 +466,8 @@ export async function activate(context: ExtensionContext) {
             const disposable = vscode.commands.registerCommand(name, command);
             context.subscriptions.push(disposable);
         });
+
+        creusotRegisterTaskProvider();
 
         // Add a Progress Status Bar item to the bottom of the screen
         statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
