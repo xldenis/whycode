@@ -171,6 +171,11 @@
         "scopeName": "source.mlw",
         "path": "./Why3.tmLanguage.json"
       }
+    ],
+    "taskDefinitions": [
+        {
+            "type": "creusot"
+        }
     ]
   },
   "scripts": {
