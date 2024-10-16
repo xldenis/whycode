@@ -71,7 +71,7 @@ jobs:
 
       - run: |
           opam install . --deps-only
-          opam pin add why3 https://gitlab.inria.fr/why3/why3.git#50731afc8d34d5773ba719bcdf436a685eea5fd1
+          opam pin add why3 https://gitlab.inria.fr/why3/why3.git#1aff0e0debcc53ab
 
       - run: LINKING_MODE=static opam exec -- dune build --profile=release
 
