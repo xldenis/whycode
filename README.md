@@ -1,6 +1,6 @@
 # WhyCode: A VsCode front-end for Why3
 
-This repository contains an experiment in using VsCode as a front-end for the [Why3](http://why3.lri.fr) prover framework, rather than its hand-built GTK frontend.
+This repository contains an experiment in using VsCode as a front-end for the [Why3](https://www.why3.org/) prover framework, rather than its hand-built GTK frontend.
 
 # Using the VSCode Extension
 
